@@ -6,6 +6,7 @@ import os
 # Thêm thư mục gốc vào path để import
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Import thêm hàm update_status từ database
 from src.database import get_connection, update_status
 
 # Cấu hình trang
@@ -46,6 +47,10 @@ visa_filter = st.sidebar.selectbox("Loại Visa", visa_options)
 location_options = ["Tất cả"] + [l for l in df['dia_diem'].dropna().unique() if l]
 location_filter = st.sidebar.selectbox("Địa điểm", location_options)
 
+# Lọc theo Trạng thái (MỚI THÊM)
+status_options = ["Tất cả", "Mới", "Đã liên hệ", "Hẹn phỏng vấn", "Đã phỏng vấn", "Offer", "Đã tuyển", "Từ chối"]
+status_filter = st.sidebar.selectbox("Trạng thái", status_options)
+
 # Tìm kiếm từ khóa
 keyword = st.sidebar.text_input("🔎 Tìm kiếm từ khóa")
 
@@ -57,6 +62,10 @@ if visa_filter != "Tất cả":
 
 if location_filter != "Tất cả":
     filtered_df = filtered_df[filtered_df['dia_diem'] == location_filter]
+
+# Lọc theo trạng thái (MỚI THÊM)
+if status_filter != "Tất cả":
+    filtered_df = filtered_df[filtered_df['status'] == status_filter]
 
 if keyword:
     filtered_df = filtered_df[
@@ -83,6 +92,7 @@ else:
         'visa_mong_muon': 'Visa',
         'nganh_nghe': 'Ngành nghề',
         'dia_diem': 'Địa điểm',
+        'status': 'Trạng thái',  # MỚI THÊM
         'summary': 'Tóm tắt'
     }
     
@@ -102,14 +112,20 @@ else:
     st.markdown("---")
     st.subheader("🔍 Xem chi tiết một ứng viên")
     
-    # Chọn ứng viên để xem
-    candidate_names = filtered_df['nguoi_gui'].fillna("Không rõ").tolist()
-    selected_name = st.selectbox("Chọn ứng viên", candidate_names)
+    # Tạo label hiển thị bao gồm ID và các thông tin phân biệt để tránh nhầm lẫn
+    filtered_df['display_label'] = filtered_df.apply(
+        lambda r: f"#{r['id']} | {r.get('nguoi_gui', 'Không rõ')} | {r.get('nganh_nghe', 'N/A')} | {r.get('dia_diem', 'N/A')}",
+        axis=1
+    )
     
-    if selected_name:
-        selected_row = filtered_df[filtered_df['nguoi_gui'] == selected_name].iloc[0]
+    selected_label = st.selectbox("Chọn ứng viên (ID | Tên | Ngành | Địa điểm)", filtered_df['display_label'].tolist())
+    
+    if selected_label:
+        # Lấy chính xác dòng dựa vào label duy nhất vừa tạo
+        selected_row = filtered_df[filtered_df['display_label'] == selected_label].iloc[0]
+        candidate_id = int(selected_row['id'])
         
-        st.markdown(f"### 👤 {selected_name}")
+        st.markdown(f"### 👤 {selected_row.get('nguoi_gui', 'Không rõ')} (ID: {candidate_id})")
         
         col1, col2 = st.columns(2)
         with col1:
@@ -121,17 +137,18 @@ else:
             st.write(f"**Giới tính:** {selected_row.get('gioi_tinh', 'N/A')}")
         
         st.markdown("**📝 Nội dung gốc:**")
-        st.text_area("", selected_row.get('raw_content', ''), height=150, disabled=True)
+        st.text_area("Nội dung", selected_row.get('raw_content', ''), height=150, disabled=True, label_visibility="collapsed")
         
         if selected_row.get('url_bai_viet'):
             st.markdown(f"**🔗 Link bài viết:** [Xem trên Facebook]({selected_row['url_bai_viet']})")
-        # ===== CẬP NHẬT TRẠNG THÁI (MỚI THÊM) =====
+            
+        # ===== CẬP NHẬT TRẠNG THÁI =====
         st.markdown("---")
-        st.subbheader("⚙️ Cập nhật trạng thái ứng viên")
+        st.subheader("🔄 Cập nhật trạng thái ứng viên")
+        
         STATUS_OPTIONS = ["Mới", "Đã liên hệ", "Hẹn phỏng vấn", 
                           "Đã phỏng vấn", "Offer", "Đã tuyển", "Từ chối"]
         
-        # Lấy trạng thái hiện tại, nếu chưa có thì mặc định là "Mới"
         current_status = selected_row.get('status', 'Mới')
         if current_status not in STATUS_OPTIONS:
             current_status = 'Mới'
@@ -143,8 +160,7 @@ else:
         )
         
         if st.button("💾 Lưu trạng thái", type="primary"):
-            candidate_id = int(selected_row['id'])  # Dùng ID để update cho chính xác
             update_status(candidate_id, new_status)
             st.success(f"✅ Đã cập nhật ứng viên #{candidate_id} → {new_status}")
-            st.cache_data.clear()  # Xóa cache để load lại data mới
-            st.rerun()             # Load lại trang
+            st.cache_data.clear()
+            st.rerun()
