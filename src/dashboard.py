@@ -21,7 +21,7 @@ st.title("🇯🇵 CRM Quản lý Ứng viên đi Nhật")
 st.markdown("---")
 
 # Tạo 2 Tab: Bảng dữ liệu và Kanban Board
-tab1, tab2 = st.tabs(["📊 Bảng dữ liệu", "📌 Kanban Board"])
+tab1, tab2, tab3 = st.tabs(["📊 Bảng dữ liệu", "📌 Kanban Board", "📈 Thống kê"])
 
 # ==========================================
 # TAB 1: BẢNG DỮ LIỆU VÀ CHI TIẾT
@@ -189,3 +189,60 @@ with tab1:
 with tab2:
     # Gọi hàm render_kanban từ file src/kanban.py
     render_kanban()
+# ==========================================
+# TAB 3: THỐNG KÊ (ANALYTICS)
+# ==========================================
+with tab3:
+    st.subheader("📈 Thống kê tổng quan")
+    
+    # Lấy dữ liệu mới nhất (không dùng cache để biểu đồ luôn đúng)
+    conn = get_connection()
+    df_stats = pd.read_sql_query("SELECT * FROM candidates", conn)
+    conn.close()
+    
+    if df_stats.empty:
+        st.info("Chưa có dữ liệu để thống kê.")
+    else:
+        # Chia làm 2 cột biểu đồ
+        col_chart1, col_chart2 = st.columns(2)
+        
+        with col_chart1:
+            st.markdown("**Phân bố Trạng thái ứng viên**")
+            # Đếm số lượng theo từng trạng thái
+            status_counts = df_stats['status'].value_counts()
+            st.bar_chart(status_counts)
+            
+        with col_chart2:
+            st.markdown("**Phân bố Địa điểm**")
+            # Đếm số lượng theo địa điểm (lấy top 10 địa điểm nhiều nhất)
+            location_counts = df_stats['dia_diem'].value_counts().head(10)
+            st.bar_chart(location_counts)
+            
+        st.markdown("---")
+        
+        # Biểu đồ thứ 2 (hàng dưới)
+        col_chart3, col_chart4 = st.columns(2)
+        
+        with col_chart3:
+            st.markdown("**Phân bố Ngành nghề (Top 10)**")
+            industry_counts = df_stats['nganh_nghe'].value_counts().head(10)
+            st.bar_chart(industry_counts)
+            
+        with col_chart4:
+            st.markdown("**Phân bố Loại Visa**")
+            visa_counts = df_stats['visa_mong_muon'].value_counts()
+            st.bar_chart(visa_counts)
+            
+        st.markdown("---")
+        
+        # Bảng số liệu tổng hợp
+        st.markdown("### 📊 Số liệu chi tiết")
+        total = len(df_stats)
+        hired = len(df_stats[df_stats['status'] == 'Đã tuyển'])
+        rejected = len(df_stats[df_stats['status'] == 'Từ chối'])
+        
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Tổng ứng viên", total)
+        m2.metric("Đã tuyển", hired, f"{hired/total*100:.1f}%")
+        m3.metric("Từ chối", rejected, f"{rejected/total*100:.1f}%")
+        m4.metric("Đang xử lý", total - hired - rejected)
