@@ -7,7 +7,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import thêm hàm update_status từ database
-from src.database import get_connection, update_status
+from src.database import get_connection, update_status, update_notes
 
 # Cấu hình trang
 st.set_page_config(
@@ -162,5 +162,26 @@ else:
         if st.button("💾 Lưu trạng thái", type="primary"):
             update_status(candidate_id, new_status)
             st.success(f"✅ Đã cập nhật ứng viên #{candidate_id} → {new_status}")
+            st.cache_data.clear()
+            st.rerun()
+                # ===== GHI CHÚ (MỚI THÊM) =====
+        st.markdown("---")
+        st.subheader("📝 Ghi chú nội bộ")
+        
+        # Lấy ghi chú hiện tại từ database, xử lý tránh lỗi None
+        current_notes = selected_row.get('notes', '')
+        if pd.isna(current_notes) or current_notes is None:
+            current_notes = ''
+            
+        note_input = st.text_area(
+            "Ghi chú cho ứng viên này", 
+            value=current_notes, 
+            height=100, 
+            placeholder="Ví dụ: Đã gọi 2h chiều, hẹn mai phỏng vấn..."
+        )
+        
+        if st.button("💾 Lưu ghi chú", type="primary"):
+            update_notes(candidate_id, note_input)
+            st.success(f"✅ Đã lưu ghi chú cho ứng viên #{candidate_id}")
             st.cache_data.clear()
             st.rerun()

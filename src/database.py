@@ -59,7 +59,17 @@ def update_status(candidate_id, new_status):
     conn.close()
     return True
 
-
+def update_notes(candidate_id, new_notes):
+    """Cập nhật ghi chú cho ứng viên theo ID."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute(
+        "UPDATE candidates SET notes = ? WHERE id = ?",
+        (new_notes, candidate_id)
+    )
+    conn.commit()
+    conn.close()
+    return True
 def add_status_column_if_not_exists():
     """Tự động thêm cột status nếu chưa có (để fix lỗi chưa lưu ALTER TABLE)."""
     conn = get_connection()
@@ -76,7 +86,21 @@ def add_status_column_if_not_exists():
             print(f"❌ Lỗi: {e}")
     finally:
         conn.close()
-
+def add_notes_column_if_not_exists():
+    """Tự động thêm cột notes nếu chưa có"""
+    conn = get_connection()
+    c = conn.cursor()
+    try:
+        c.execute("ALTER TABLE candidates ADD COLUMN notes TEXT DEFAULT '';")
+        conn.commit()
+        print("✅ Đã thêm cột 'notes' vào Database thành công!")
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" in str(e):
+            print("ℹ️ Cột 'notes' đã tồn tại sẵn trong Database.")
+        else:
+            print(f"❌ Lỗi: {e}")
+    finally:
+        conn.close()
 
 def test_connection():
     """Test kết nối database"""
@@ -94,14 +118,10 @@ def test_connection():
 
 
 if __name__ == "__main__":
-    # 1. Test kết nối cơ bản
     test_connection()
-    
-    # 2. Tự động kiểm tra và thêm cột status nếu thiếu
     add_status_column_if_not_exists()
+    add_notes_column_if_not_exists() # Thêm dòng này
     
-    # 3. Test tính năng update (Sẽ chạy được sau khi cột status được thêm ở bước 2)
-    # Lưu ý: Bạn có thể đổi số 1 thành ID thực tế của ứng viên bạn muốn test
     print("\n--- Test cập nhật trạng thái ---")
     update_status(1, "Đã liên hệ")
-    print("✅ Đã chạy test update_status thành công! (Ứng viên ID=1 đã đổi thành 'Đã liên hệ')")
+    print("✅ Đã chạy test update_status thành công!")
