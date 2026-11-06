@@ -7,7 +7,10 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import các hàm từ database và kanban
-from src.database import get_connection, update_status, update_notes
+from src.database import (
+    get_connection, update_status, update_notes, 
+    log_interaction, get_interaction_history
+)
 from src.kanban import render_kanban
 
 # Cấu hình trang
@@ -20,7 +23,7 @@ st.set_page_config(
 st.title("🇯🇵 CRM Quản lý Ứng viên đi Nhật")
 st.markdown("---")
 
-# Tạo 2 Tab: Bảng dữ liệu và Kanban Board
+# Tạo 3 Tab
 tab1, tab2, tab3 = st.tabs(["📊 Bảng dữ liệu", "📌 Kanban Board", "📈 Thống kê"])
 
 # ==========================================
@@ -45,37 +48,27 @@ with tab1:
     # ===== SIDEBAR FILTERS =====
     st.sidebar.header("🔍 Bộ lọc")
 
-    # Lọc theo Visa
     visa_options = ["Tất cả"] + [v for v in df['visa_mong_muon'].dropna().unique() if v]
     visa_filter = st.sidebar.selectbox("Loại Visa", visa_options)
 
-    # Lọc theo Địa điểm
     location_options = ["Tất cả"] + [l for l in df['dia_diem'].dropna().unique() if l]
     location_filter = st.sidebar.selectbox("Địa điểm", location_options)
 
-    # Lọc theo Trạng thái
     status_options = ["Tất cả", "Mới", "Đã liên hệ", "Hẹn phỏng vấn", "Đã phỏng vấn", "Offer", "Đã tuyển", "Từ chối"]
     status_filter = st.sidebar.selectbox("Trạng thái", status_options)
 
-    # Tìm kiếm từ khóa
     keyword = st.sidebar.text_input("🔎 Tìm kiếm từ khóa")
 
     # ===== ÁP DỤNG BỘ LỌC =====
     filtered_df = df.copy()
-
     if visa_filter != "Tất cả":
         filtered_df = filtered_df[filtered_df['visa_mong_muon'] == visa_filter]
-
     if location_filter != "Tất cả":
         filtered_df = filtered_df[filtered_df['dia_diem'] == location_filter]
-
     if status_filter != "Tất cả":
         filtered_df = filtered_df[filtered_df['status'] == status_filter]
-
     if keyword:
-        filtered_df = filtered_df[
-            filtered_df['raw_content'].str.contains(keyword, case=False, na=False)
-        ]
+        filtered_df = filtered_df[filtered_df['raw_content'].str.contains(keyword, case=False, na=False)]
 
     # ===== HIỂN THỊ METRICS =====
     col1, col2, col3 = st.columns(3)
@@ -91,7 +84,6 @@ with tab1:
     if filtered_df.empty:
         st.warning("⚠️ Không tìm thấy ứng viên nào phù hợp.")
     else:
-        # Chọn cột để hiển thị
         display_columns = {
             'nguoi_gui': 'Người đăng',
             'visa_mong_muon': 'Visa',
@@ -100,14 +92,12 @@ with tab1:
             'status': 'Trạng thái',
             'summary': 'Tóm tắt'
         }
-        
         available_columns = [col for col in display_columns.keys() if col in filtered_df.columns]
         display_df = filtered_df[available_columns].copy()
         display_df.columns = [display_columns[col] for col in available_columns]
         
         st.dataframe(display_df, use_container_width=True, height=400)
 
-        # Nút Export CSV
         csv_data = filtered_df.to_csv(index=False).encode('utf-8-sig')
         st.download_button(
             label="📥 Tải xuống danh sách (CSV)",
@@ -154,7 +144,6 @@ with tab1:
             st.subheader("🔄 Cập nhật trạng thái ứng viên")
             
             STATUS_OPTIONS = ["Mới", "Đã liên hệ", "Hẹn phỏng vấn", "Đã phỏng vấn", "Offer", "Đã tuyển", "Từ chối"]
-            
             current_status = selected_row.get('status', 'Mới')
             if current_status not in STATUS_OPTIONS:
                 current_status = 'Mới'
@@ -162,7 +151,9 @@ with tab1:
             new_status = st.selectbox("Chọn trạng thái mới", STATUS_OPTIONS, index=STATUS_OPTIONS.index(current_status))
             
             if st.button("💾 Lưu trạng thái", type="primary"):
+                old_status = selected_row.get('status', 'Mới')
                 update_status(candidate_id, new_status)
+                log_interaction(candidate_id, "Đổi trạng thái", old_status, new_status)
                 st.success(f"✅ Đã cập nhật ứng viên #{candidate_id} → {new_status}")
                 st.cache_data.clear()
                 st.rerun()
@@ -183,19 +174,31 @@ with tab1:
                 st.cache_data.clear()
                 st.rerun()
 
+            # ===== LỊCH SỬ TƯƠNG TÁC =====
+            st.markdown("---")
+            st.subheader("📜 Lịch sử tương tác")
+            
+            history_df = get_interaction_history(candidate_id)
+            if history_df.empty:
+                st.info("Chưa có lịch sử tương tác nào.")
+            else:
+                history_df['created_at'] = pd.to_datetime(history_df['created_at']).dt.strftime('%H:%M %d/%m/%Y')
+                history_df.columns = ['Hành động', 'Giá trị cũ', 'Giá trị mới', 'Thời gian']
+                st.dataframe(history_df, use_container_width=True, hide_index=True)
+
+
 # ==========================================
 # TAB 2: KANBAN BOARD
 # ==========================================
 with tab2:
-    # Gọi hàm render_kanban từ file src/kanban.py
     render_kanban()
+
 # ==========================================
 # TAB 3: THỐNG KÊ (ANALYTICS)
 # ==========================================
 with tab3:
     st.subheader("📈 Thống kê tổng quan")
     
-    # Lấy dữ liệu mới nhất (không dùng cache để biểu đồ luôn đúng)
     conn = get_connection()
     df_stats = pd.read_sql_query("SELECT * FROM candidates", conn)
     conn.close()
@@ -203,24 +206,20 @@ with tab3:
     if df_stats.empty:
         st.info("Chưa có dữ liệu để thống kê.")
     else:
-        # Chia làm 2 cột biểu đồ
         col_chart1, col_chart2 = st.columns(2)
         
         with col_chart1:
             st.markdown("**Phân bố Trạng thái ứng viên**")
-            # Đếm số lượng theo từng trạng thái
             status_counts = df_stats['status'].value_counts()
             st.bar_chart(status_counts)
             
         with col_chart2:
             st.markdown("**Phân bố Địa điểm**")
-            # Đếm số lượng theo địa điểm (lấy top 10 địa điểm nhiều nhất)
             location_counts = df_stats['dia_diem'].value_counts().head(10)
             st.bar_chart(location_counts)
             
         st.markdown("---")
         
-        # Biểu đồ thứ 2 (hàng dưới)
         col_chart3, col_chart4 = st.columns(2)
         
         with col_chart3:
@@ -235,7 +234,6 @@ with tab3:
             
         st.markdown("---")
         
-        # Bảng số liệu tổng hợp
         st.markdown("### 📊 Số liệu chi tiết")
         total = len(df_stats)
         hired = len(df_stats[df_stats['status'] == 'Đã tuyển'])

@@ -1,10 +1,11 @@
 import sqlite3
 import os
+import pandas as pd
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Đường dẫn database lấy từ file .env (nằm ở thư mục shared_data)
+# Đường dẫn database lấy từ file .env
 DB_PATH = os.getenv("DB_PATH", r"D:\shared_data\jobs.db")
 
 
@@ -27,10 +28,8 @@ def search_candidates(keyword=None, visa=None, location=None):
     """Tìm kiếm ứng viên theo bộ lọc"""
     conn = get_connection()
     c = conn.cursor()
-
     query = "SELECT * FROM candidates WHERE 1=1"
     params = []
-
     if keyword:
         query += " AND raw_content LIKE ?"
         params.append(f"%{keyword}%")
@@ -40,7 +39,6 @@ def search_candidates(keyword=None, visa=None, location=None):
     if location:
         query += " AND dia_diem LIKE ?"
         params.append(f"%{location}%")
-
     c.execute(query, params)
     results = c.fetchall()
     conn.close()
@@ -48,30 +46,27 @@ def search_candidates(keyword=None, visa=None, location=None):
 
 
 def update_status(candidate_id, new_status):
-    """Cập nhật trạng thái ứng viên theo ID (ID là duy nhất, không sợ nhầm)."""
+    """Cập nhật trạng thái ứng viên theo ID."""
     conn = get_connection()
     c = conn.cursor()
-    c.execute(
-        "UPDATE candidates SET status = ? WHERE id = ?",
-        (new_status, candidate_id)
-    )
+    c.execute("UPDATE candidates SET status = ? WHERE id = ?", (new_status, candidate_id))
     conn.commit()
     conn.close()
     return True
+
 
 def update_notes(candidate_id, new_notes):
     """Cập nhật ghi chú cho ứng viên theo ID."""
     conn = get_connection()
     c = conn.cursor()
-    c.execute(
-        "UPDATE candidates SET notes = ? WHERE id = ?",
-        (new_notes, candidate_id)
-    )
+    c.execute("UPDATE candidates SET notes = ? WHERE id = ?", (new_notes, candidate_id))
     conn.commit()
     conn.close()
     return True
+
+
 def add_status_column_if_not_exists():
-    """Tự động thêm cột status nếu chưa có (để fix lỗi chưa lưu ALTER TABLE)."""
+    """Tự động thêm cột status nếu chưa có"""
     conn = get_connection()
     c = conn.cursor()
     try:
@@ -79,13 +74,14 @@ def add_status_column_if_not_exists():
         conn.commit()
         print("✅ Đã thêm cột 'status' vào Database thành công!")
     except sqlite3.OperationalError as e:
-        # Nếu cột đã tồn tại, SQLite sẽ báo lỗi, ta bỏ qua
         if "duplicate column name" in str(e):
             print("ℹ️ Cột 'status' đã tồn tại sẵn trong Database.")
         else:
             print(f"❌ Lỗi: {e}")
     finally:
         conn.close()
+
+
 def add_notes_column_if_not_exists():
     """Tự động thêm cột notes nếu chưa có"""
     conn = get_connection()
@@ -101,6 +97,50 @@ def add_notes_column_if_not_exists():
             print(f"❌ Lỗi: {e}")
     finally:
         conn.close()
+
+
+def create_interaction_log_table():
+    """Tạo bảng lịch sử tương tác nếu chưa có"""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS interaction_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidate_id INTEGER,
+            action TEXT,
+            old_value TEXT,
+            new_value TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (candidate_id) REFERENCES candidates(id)
+        )
+    ''')
+    conn.commit()
+    conn.close()
+    print("✅ Bảng 'interaction_log' đã sẵn sàng!")
+
+
+def log_interaction(candidate_id, action, old_value=None, new_value=None):
+    """Ghi lại lịch sử tương tác"""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO interaction_log (candidate_id, action, old_value, new_value) VALUES (?, ?, ?, ?)",
+        (candidate_id, action, old_value, new_value)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_interaction_history(candidate_id):
+    """Lấy lịch sử tương tác của một ứng viên"""
+    conn = get_connection()
+    df = pd.read_sql_query(
+        "SELECT action, old_value, new_value, created_at FROM interaction_log WHERE candidate_id = ? ORDER BY created_at DESC",
+        conn, params=(candidate_id,)
+    )
+    conn.close()
+    return df
+
 
 def test_connection():
     """Test kết nối database"""
@@ -120,7 +160,8 @@ def test_connection():
 if __name__ == "__main__":
     test_connection()
     add_status_column_if_not_exists()
-    add_notes_column_if_not_exists() # Thêm dòng này
+    add_notes_column_if_not_exists()
+    create_interaction_log_table()
     
     print("\n--- Test cập nhật trạng thái ---")
     update_status(1, "Đã liên hệ")
