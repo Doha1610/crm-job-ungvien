@@ -36,16 +36,10 @@ def render_kanban():
             'items': items
         })
 
-    # Hiển thị Kanban và bắt sự kiện kéo thả
+    # Hiển thị Kanban và bắt sự kiện kéo thả (Đã bỏ custom_style để tránh lỗi React)
     sorted_data = sort_items(
         kanban_data,
-        multi_containers=True,  # Bắt buộc phải có để kéo thả nhiều cột
-        custom_style={
-            "background-color": "#f0f2f6",
-            "border-radius": "8px",
-            "padding": "10px",
-            "margin": "5px"
-        },
+        multi_containers=True,
         key="kanban_board"
     )
 
