@@ -107,6 +107,15 @@ else:
         use_container_width=True,
         height=500
     )
+    # ===== EXPORT CSV (MỚI THÊM) =====
+    csv_data = filtered_df.to_csv(index=False).encode('utf-8-sig')
+    st.download_button(
+        label="📥 Tải xuống danh sách CSV",
+        data=csv_data,
+        file_name=f"ungvien_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.csv",
+        mime="text/csv",
+        type="primary"
+    )
     
     # ===== XEM CHI TIẾT =====
     st.markdown("---")
