@@ -1,3 +1,6 @@
-streamlit==1.28.0
-pandas==2.1.0
-python-dotenv==1.0.0
+fastapi
+uvicorn
+jinja2
+python-multipart
+pandas
+python-dotenv
