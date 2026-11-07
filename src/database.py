@@ -64,6 +64,30 @@ def update_notes(candidate_id, new_notes):
     conn.close()
     return True
 
+def add_assigned_column_if_not_exists():
+    """Tự động thêm cột assigned_to nếu chưa có"""
+    conn = get_connection()
+    c = conn.cursor()
+    try:
+        c.execute("ALTER TABLE candidates ADD COLUMN assigned_to TEXT DEFAULT '';")
+        conn.commit()
+        print("✅ Đã thêm cột 'assigned_to' vào Database thành công!")
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" in str(e):
+            print("ℹ️ Cột 'assigned_to' đã tồn tại sẵn.")
+        else:
+            print(f"❌ Lỗi: {e}")
+    finally:
+        conn.close()
+
+def update_assigned_to(candidate_id, assigned_to):
+    """Cập nhật người phụ trách cho ứng viên"""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("UPDATE candidates SET assigned_to = ? WHERE id = ?", (assigned_to, candidate_id))
+    conn.commit()
+    conn.close()
+    return True
 
 def add_status_column_if_not_exists():
     """Tự động thêm cột status nếu chưa có"""
@@ -161,6 +185,7 @@ if __name__ == "__main__":
     test_connection()
     add_status_column_if_not_exists()
     add_notes_column_if_not_exists()
+    add_assigned_column_if_not_exists()  
     create_interaction_log_table()
     
     print("\n--- Test cập nhật trạng thái ---")

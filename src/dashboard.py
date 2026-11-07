@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import các hàm từ database và kanban
 from src.database import (
     get_connection, update_status, update_notes, 
-    log_interaction, get_interaction_history
+    log_interaction, get_interaction_history, update_assigned_to
 )
 from src.kanban import render_kanban
 
@@ -90,7 +90,8 @@ with tab1:
             'nganh_nghe': 'Ngành nghề',
             'dia_diem': 'Địa điểm',
             'status': 'Trạng thái',
-            'summary': 'Tóm tắt'
+            'summary': 'Tóm tắt',
+            'assigned_to': 'Phụ trách',
         }
         available_columns = [col for col in display_columns.keys() if col in filtered_df.columns]
         display_df = filtered_df[available_columns].copy()
@@ -174,6 +175,34 @@ with tab1:
                 st.cache_data.clear()
                 st.rerun()
 
+            # ===== PHÂN CÔNG HR (ĐÃ SỬA LỖI THỤT LỀ) =====
+            st.markdown("---")
+            st.subheader("👥 Phân công phụ trách")
+            
+            # Danh sách HR (bạn có thể sửa lại tên tùy ý)
+            HR_LIST = ["Chưa phân công", "HR Lan", "HR Minh", "HR Hùng", "HR Thảo"]
+            
+            current_assigned = selected_row.get('assigned_to', '')
+            if pd.isna(current_assigned) or current_assigned is None or current_assigned == '':
+                current_assigned = "Chưa phân công"
+                
+            if current_assigned not in HR_LIST:
+                current_assigned = "Chưa phân công"
+                
+            new_assigned = st.selectbox(
+                "Chọn nhân viên phụ trách",
+                HR_LIST,
+                index=HR_LIST.index(current_assigned)
+            )
+            
+            if st.button("💾 Lưu phân công", type="primary"):
+                save_value = "" if new_assigned == "Chưa phân công" else new_assigned
+                update_assigned_to(candidate_id, save_value)
+                log_interaction(candidate_id, "Phân công HR", current_assigned, new_assigned)
+                st.success(f"✅ Đã phân công ứng viên #{candidate_id} cho: {new_assigned}")
+                st.cache_data.clear()
+                st.rerun()
+
             # ===== LỊCH SỬ TƯƠNG TÁC =====
             st.markdown("---")
             st.subheader("📜 Lịch sử tương tác")
@@ -185,7 +214,6 @@ with tab1:
                 history_df['created_at'] = pd.to_datetime(history_df['created_at']).dt.strftime('%H:%M %d/%m/%Y')
                 history_df.columns = ['Hành động', 'Giá trị cũ', 'Giá trị mới', 'Thời gian']
                 st.dataframe(history_df, use_container_width=True, hide_index=True)
-
 
 # ==========================================
 # TAB 2: KANBAN BOARD
