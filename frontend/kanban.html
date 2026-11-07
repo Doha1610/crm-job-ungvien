@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>HelloJob CRM - Kanban Board</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Nhúng thư viện SortableJS để kéo thả -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <style>
+        /* CSS cho Kanban */
+        .kanban-board {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            padding-bottom: 20px;
+            align-items: flex-start;
+        }
+        .kanban-column {
+            background-color: #f1f5f9;
+            border-radius: 10px;
+            min-width: 280px;
+            width: 280px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        .column-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .column-header h3 {
+            margin: 0;
+            font-size: 15px;
+            text-transform: uppercase;
+            color: #475569;
+        }
+        .count-badge {
+            background: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #64748b;
+            border: 1px solid #cbd5e1;
+        }
+        .kanban-items {
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex-grow: 1;
+        }
+        .kanban-card {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-left: 4px solid #3b82f6;
+            cursor: grab;
+            transition: transform 0.1s;
+        }
+        .kanban-card:active {
+            cursor: grabbing;
+        }
+        .kanban-card .name {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+            font-size: 14px;
+        }
+        .kanban-card .info {
+            font-size: 12px;
+            color: #64748b;
+        }
+        
+        /* Màu viền trái cho từng cột */
+        .col-new .kanban-card { border-left-color: #3b82f6; }
+        .col-contacted .kanban-card { border-left-color: #f59e0b; }
+        .col-interview .kanban-card { border-left-color: #8b5cf6; }
+        .col-hired .kanban-card { border-left-color: #10b981; }
+        .col-rejected .kanban-card { border-left-color: #ef4444; }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebar-container"></div>
+
+    <!-- Nội dung chính -->
+    <div class="container">
+        <h1>📌 Kanban Board</h1>
+        <p style="color: #64748b; margin-bottom: 20px;">Kéo thả ứng viên để thay đổi trạng thái.</p>
+
+        <!-- Bảng Kanban -->
+        <div class="kanban-board" id="kanbanBoard">
+            <!-- Các cột sẽ được JS sinh ra ở đây -->
+        </div>
+    </div>
+
+    <!-- Nhúng các file JS -->
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/kanban.js"></script>
+</body>
+</html>
