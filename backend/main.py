@@ -20,7 +20,10 @@ FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 # ==========================================
 app.mount("/css", StaticFiles(directory=os.path.join(FRONTEND_DIR, "css")), name="css")
 app.mount("/js", StaticFiles(directory=os.path.join(FRONTEND_DIR, "js")), name="js")
-
+# Phục vụ thư mục ảnh
+# Phục vụ file ảnh từ thư mục gốc
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+app.mount("/logo", StaticFiles(directory=ROOT_DIR), name="logo")
 # Cấu hình template HTML
 templates = Jinja2Templates(directory=FRONTEND_DIR)
 
@@ -89,7 +92,43 @@ def update_status_api(payload: StatusUpdate):
         pass
     return {"status": "success", "message": "Cập nhật thành công"}
 
+# API lấy danh sách lịch hẹn
+@app.get("/api/appointments")
+def get_appointments():
+    conn = database.get_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT a.id, a.title, a.appointment_date, a.note, a.status, a.candidate_id, c.nguoi_gui 
+        FROM appointments a
+        LEFT JOIN candidates c ON a.candidate_id = c.id
+        ORDER BY a.appointment_date ASC
+    """)
+    columns = [column[0] for column in c.description]
+    results = [dict(zip(columns, row)) for row in c.fetchall()]
+    conn.close()
+    return {"data": results}
 
+# API thêm lịch hẹn
+class NewAppointment(BaseModel):
+    candidate_id: int
+    title: str
+    appointment_date: str # Định dạng YYYY-MM-DDTHH:MM
+    note: str = None
+
+@app.post("/api/add-appointment")
+def add_appointment(payload: NewAppointment):
+    try:
+        conn = database.get_connection()
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO appointments (candidate_id, title, appointment_date, note)
+            VALUES (?, ?, ?, ?)
+        """, (payload.candidate_id, payload.title, payload.appointment_date, payload.note))
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": "Thêm lịch hẹn thành công"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 # ==========================================
 # CÁC ROUTE TRẢ VỀ GIAO DIỆN HTML
 # ==========================================
@@ -198,6 +237,10 @@ def add_candidate(payload: NewCandidate):
         return {"status": "success", "message": "Thêm thành công", "id": new_id}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+    
+@app.get("/calendar", response_class=HTMLResponse)
+def read_calendar_page(request: Request):
+    return templates.TemplateResponse(request=request, name="calendar.html", context={})
 # ==========================================
 # CẤU HÌNH PHỤC VỤ FILE HTML TĨNH (SIDEBAR...)
 # LƯU Ý: PHẢI ĐẶT Ở CUỐI CÙNG ĐỂ KHÔNG CHIẾM QUYỀN CÁC ROUTE KHÁC

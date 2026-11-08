@@ -180,14 +180,31 @@ def test_connection():
         print(f"❌ Lỗi kết nối: {e}")
         return False
 
-
+def create_appointments_table():
+    """Tạo bảng lịch hẹn nếu chưa có"""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS appointments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidate_id INTEGER,
+            title TEXT,
+            appointment_date TIMESTAMP,
+            note TEXT,
+            status TEXT DEFAULT 'Chưa xong',
+            FOREIGN KEY (candidate_id) REFERENCES candidates(id)
+        )
+    ''')
+    conn.commit()
+    conn.close()
+    print("✅ Bảng 'appointments' đã sẵn sàng!")
 if __name__ == "__main__":
     test_connection()
     add_status_column_if_not_exists()
     add_notes_column_if_not_exists()
     add_assigned_column_if_not_exists()  
     create_interaction_log_table()
-    
+    create_appointments_table()
     print("\n--- Test cập nhật trạng thái ---")
     update_status(1, "Đã liên hệ")
     print("✅ Đã chạy test update_status thành công!")
