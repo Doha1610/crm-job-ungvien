@@ -1,21 +1,16 @@
-document.addEventListener("DOMContentLoaded", function() {
-    loadDashboardData();
-});
+// Hàm tải dữ liệu chung (nhận keyword và timeRange)
+function loadDashboardData(keyword = '', timeRange = 'all') {
+    // Tạo URL với các tham số
+    let url = `/api/candidates?keyword=${encodeURIComponent(keyword)}&time_range=${timeRange}`;
+    
+    console.log(`Đang tải dữ liệu: Keyword="${keyword}", Thời gian="${timeRange}"`);
 
-function loadDashboardData() {
-    fetch('/api/candidates')
+    fetch(url)
         .then(res => res.json())
         .then(responseData => {
             const candidates = responseData.data;
-            console.log("Dữ liệu tải được:", candidates.length, "ứng viên");
-
-            // 1. Vẽ Metrics
             renderMetrics(candidates);
-            
-            // 2. Vẽ Kanban Mini
             renderKanbanMini(candidates);
-            
-            // 3. Vẽ Biểu đồ thống kê
             renderCharts(candidates);
         })
         .catch(err => console.error("Lỗi tải dữ liệu:", err));
@@ -33,7 +28,7 @@ function renderMetrics(data) {
     document.getElementById('metricRate').innerText = rate + '%';
     document.getElementById('metricRejected').innerText = rejected;
 
-    // Vẽ Sparkline (dữ liệu giả lập)
+    // Vẽ Sparkline
     const fakeTrend = [10, 15, 8, 20, 18, 25, 22];
     const config = (color) => ({
         type: 'line',
@@ -53,19 +48,17 @@ function renderKanbanMini(data) {
     if (!container) return;
     
     container.innerHTML = '';
-        // Định nghĩa trạng thái và class màu tương ứng
     const statusConfig = [
         { status: "Mới", class: "col-new" },
         { status: "Đã liên hệ", class: "col-contacted" },
         { status: "Hẹn phỏng vấn", class: "col-interview" },
-        { status: "Đã tuyển", class: "col-potential" } // Tạm dùng màu tím cho Đã tuyển
+        { status: "Đã tuyển", class: "col-potential" }
     ];
 
     statusConfig.forEach(config => {
         const status = config.status;
         const items = data.filter(c => c.status === status);
         const col = document.createElement('div');
-        // Gán class màu vào cột
         col.className = `kanban-col ${config.class}`; 
         col.innerHTML = `<h4>${status} (${items.length})</h4>`;
         
@@ -138,18 +131,15 @@ function showDetail(id) {
                 ${historyHtml}
             </div>
 
-            <!-- Box Lịch chăm sóc tiếp theo -->
             <div class="next-appointment-box">
                 <div>
                     <div class="label">Lịch chăm sóc tiếp theo</div>
                     <div class="date">📅 ${c.next_appointment || 'Chưa có lịch'}</div>
                 </div>
-                <!-- Nút chuyển sang trang Lịch hẹn -->
                 <button class="btn-blue" onclick="window.location.href='/calendar'">Đặt lịch</button>
             </div>
 
             <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <!-- Nút chuyển sang trang Quản lý ứng viên -->
                 <button class="btn-blue" style="flex: 1;" onclick="window.location.href='/candidates'">💾 Cập nhật</button>
                 <button class="btn-outline" style="flex: 1;" onclick="window.location.href='/candidates'">📝 Ghi chú</button>
             </div>
@@ -210,23 +200,27 @@ function renderCharts(candidates) {
         });
     }
 }
-// Lắng nghe sự kiện gõ phím trên thanh tìm kiếm
+
+// ===== KHỞI TẠO VÀ GẮN SỰ KIỆN =====
 document.addEventListener("DOMContentLoaded", function() {
+    // 1. Tải dữ liệu lần đầu
+    loadDashboardData();
+
+    // 2. Lắng nghe sự kiện cho Tìm kiếm và Bộ lọc thời gian
     const searchInput = document.getElementById('searchInput');
+    const timeFilter = document.getElementById('timeFilter');
+
+    function handleFilterChange() {
+        const keyword = searchInput ? searchInput.value.trim() : '';
+        const timeRange = timeFilter ? timeFilter.value : 'all';
+        loadDashboardData(keyword, timeRange);
+    }
+
     if (searchInput) {
-        searchInput.addEventListener('input', function(e) {
-            const keyword = e.target.value.trim();
-            // Gọi API với từ khóa tìm kiếm
-            fetch(`/api/candidates?keyword=${encodeURIComponent(keyword)}`)
-                .then(res => res.json())
-                .then(responseData => {
-                    const candidates = responseData.data;
-                    // Cập nhật lại Kanban và Metrics theo kết quả lọc
-                    renderMetrics(candidates);
-                    renderKanbanMini(candidates);
-                    renderCharts(candidates);
-                })
-                .catch(err => console.error("Lỗi tìm kiếm:", err));
-        });
+        searchInput.addEventListener('input', handleFilterChange);
+    }
+
+    if (timeFilter) {
+        timeFilter.addEventListener('change', handleFilterChange);
     }
 });
