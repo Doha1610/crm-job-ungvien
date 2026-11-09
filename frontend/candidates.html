@@ -4,75 +4,210 @@
     <meta charset="UTF-8">
     <title>HelloJob CRM - Quản lý Ứng viên</title>
     <link rel="stylesheet" href="/css/style.css">
-    <!-- CSS cho Modal và Grid -->
     <style>
-        .candidate-grid {
+        /* Layout 2 cột */
+        .candidates-layout {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: 2.2fr 1fr;
             gap: 20px;
             margin-top: 20px;
+            align-items: start;
         }
-        .candidate-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            border: 1px solid #e2e8f0;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .candidate-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 15px rgba(0,0,0,0.1);
-            border-color: #3b82f6;
-        }
-        .candidate-card h3 { margin: 0 0 10px 0; color: #1e293b; font-size: 18px; }
-        .candidate-card p { margin: 5px 0; color: #64748b; font-size: 14px; }
-        
-        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-top: 10px; }
-        .badge-new { background: #e0f2fe; color: #0369a1; }
-        .badge-contacted { background: #fef3c7; color: #92400e; }
-        .badge-interview { background: #f3e8ff; color: #6b21a8; }
-        .badge-hired { background: #dcfce7; color: #166534; }
-        .badge-rejected { background: #fee2e2; color: #991b1b; }
 
-        /* Modal CSS */
+        /* Thanh công cụ (Top Filter) */
+        .toolbar {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            flex-wrap: wrap;
+        }
+        .toolbar select, .toolbar input {
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #475569;
+            outline: none;
+        }
+        .toolbar input { flex: 1; min-width: 200px; }
+        .btn-primary { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; }
+        .btn-outline { background: white; color: #475569; border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; }
+
+        /* 4 Ô Thống kê nhanh */
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .stat-card { padding: 15px; border-radius: 12px; display: flex; align-items: center; gap: 15px; }
+        .stat-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; background: white; }
+        .stat-info .label { font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 4px; }
+        .stat-info .value { font-size: 20px; font-weight: 700; color: #1e293b; }
+        .stat-info .sub { font-size: 11px; color: #10b981; font-weight: 600; }
+
+        /* Màu nền cho từng ô thống kê */
+        .bg-blue { background-color: #eff6ff; }
+        .bg-green { background-color: #f0fdf4; }
+        .bg-purple { background-color: #faf5ff; }
+        .bg-orange { background-color: #fff7ed; }
+
+        /* Bảng dữ liệu */
+        .data-table { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .data-table table { width: 100%; border-collapse: collapse; }
+        .data-table th { background: #f8fafc; padding: 12px 15px; text-align: left; font-size: 12px; color: #64748b; font-weight: 600; border-bottom: 1px solid #e2e8f0; }
+        .data-table td { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #334155; vertical-align: middle; }
+        .data-table tr { cursor: pointer; transition: background 0.2s; }
+        .data-table tr:hover { background: #f8fafc; }
+        .data-table tr.active { background: #eff6ff; border-left: 3px solid #3b82f6; }
+        
+        .avatar { width: 36px; height: 36px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; color: #475569; }
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
+        .badge-moi { background: #e0f2fe; color: #0369a1; }
+        .badge-lienhe { background: #dcfce7; color: #166534; }
+        .badge-tiemnang { background: #f3e8ff; color: #6b21a8; }
+        .badge-tuyen { background: #ffedd5; color: #9a3412; }
+
+        /* Cột Chi tiết bên phải */
+        .detail-panel { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; height: 100%; }
+        .detail-header { text-align: center; margin-bottom: 20px; }
+        .detail-avatar { width: 80px; height: 80px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 10px; }
+        .detail-name { font-size: 18px; font-weight: 700; color: #1e293b; margin: 0; }
+        .detail-status-badge { margin-top: 8px; display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; background: #e0f2fe; color: #0369a1; }
+
+        .detail-section { margin-bottom: 20px; }
+        .detail-section h4 { font-size: 13px; color: #64748b; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }
+        .detail-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; color: #334155; }
+        .detail-row span:first-child { color: #64748b; }
+        
+        .timeline { position: relative; padding-left: 15px; margin-top: 10px; }
+        .timeline::before { content: ''; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; background: #e2e8f0; }
+        .timeline-item { position: relative; margin-bottom: 15px; font-size: 12px; }
+        .timeline-item::before { content: ''; position: absolute; left: -15px; top: 3px; width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; border: 2px solid white; }
+        .timeline-time { color: #94a3b8; font-size: 11px; margin-bottom: 2px; }
+
+        .action-buttons { display: flex; gap: 10px; margin-top: 20px; }
+        .action-buttons button { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; }
+        .btn-call { background: #3b82f6; color: white; }
+        .btn-msg { background: #8b5cf6; color: white; }
+        .btn-book { background: #10b981; color: white; }
+
+        /* CSS cho Modal */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
         .modal-overlay.active { display: flex; }
-        .modal-content { background: white; width: 600px; max-width: 90%; border-radius: 12px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; position: relative; }
-        .modal-close { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: #64748b; border: none; background: none; }
+        .modal-content { background: white; width: 500px; max-width: 90%; border-radius: 12px; padding: 24px; position: relative; max-height: 90vh; overflow-y: auto; }
+        .modal-close { position: absolute; top: 15px; right: 20px; border: none; background: none; font-size: 24px; cursor: pointer; color: #64748b; }
         .modal-close:hover { color: #ef4444; }
-        .note-section { margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 15px; }
-        .note-textarea { width: 100%; height: 80px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; resize: vertical; font-family: inherit;}
-        .btn-save-note { margin-top: 10px; padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; }
-        .history-list { margin-top: 15px; font-size: 13px; color: #475569; max-height: 150px; overflow-y: auto; }
-        .history-item { padding: 8px 0; border-bottom: 1px dashed #e2e8f0; }
-        .history-time { color: #94a3b8; font-size: 11px; }
     </style>
 </head>
 <body>
     <div id="sidebar-container"></div>
 
     <div class="container">
+        <!-- HEADER -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <div>
-                <h1>👥 Quản lý Ứng viên</h1>
-                <p style="color: #64748b;">Click vào từng thẻ để xem thông tin chi tiết và thêm ghi chú.</p>
+                <h1 style="margin: 0;">👥 Quản lý ứng viên</h1>
+                <p style="color: #64748b; font-size: 14px;">Tìm kiếm, quản lý và chăm sóc ứng viên hiệu quả.</p>
             </div>
-            <button onclick="exportCSV()" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
-                📥 Tải xuống CSV
-            </button>
+            <!-- Nút mở Modal (đã sửa) -->
+            <button class="btn-primary" onclick="openAddModal()">➕ Thêm ứng viên</button>
         </div>
 
-        <!-- QUAN TRỌNG: Thẻ div này phải có class candidate-grid -->
-        <div id="candidateGrid" class="candidate-grid"></div>
+        <!-- THANH CÔNG CỤ (FILTER) -->
+        <div class="toolbar">
+            <select><option>Tất cả Visa</option></select>
+            <select><option>Tất cả Địa điểm</option></select>
+            <select><option>Tất cả Trạng thái</option></select>
+            <input type="text" placeholder="🔍 Tìm kiếm tên, SĐT, ngành nghề...">
+            <button class="btn-outline">⚙️ Lọc nâng cao</button>
+            <button class="btn-outline" onclick="exportCSV()">📥 Xuất CSV</button>
+        </div>
+
+        <!-- LAYOUT 2 CỘT -->
+        <div class="candidates-layout">
+            <!-- CỘT TRÁI: THỐNG KÊ + BẢNG -->
+            <div>
+                <!-- 4 Ô THỐNG KÊ -->
+                <div class="stats-grid">
+                    <div class="stat-card bg-blue">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-info"><div class="label">Tổng ứng viên</div><div class="value" id="statTotal">0</div><div class="sub">↗ +12%</div></div>
+                    </div>
+                    <div class="stat-card bg-green">
+                        <div class="stat-icon">📞</div>
+                        <div class="stat-info"><div class="label">Đã liên hệ</div><div class="value" id="statContacted">0</div><div class="sub">↗ +8%</div></div>
+                    </div>
+                    <div class="stat-card bg-purple">
+                        <div class="stat-icon">⭐</div>
+                        <div class="stat-info"><div class="label">Tiềm năng</div><div class="value" id="statPotential">0</div><div class="sub">↗ +15%</div></div>
+                    </div>
+                    <div class="stat-card bg-orange">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-info"><div class="label">Đã tuyển</div><div class="value" id="statHired">0</div><div class="sub">↗ +10%</div></div>
+                    </div>
+                </div>
+
+                <!-- BẢNG ỨNG VIÊN -->
+                <div class="data-table">
+                    <table id="candidateTable">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox"></th>
+                                <th>#</th>
+                                <th>Thông tin ứng viên</th>
+                                <th>Visa mong muốn</th>
+                                <th>Địa điểm</th>
+                                <th>Trạng thái</th>
+                                <th>Phụ trách</th>
+                                <th>...</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dữ liệu sẽ được JS chèn vào đây -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- CỘT PHẢI: CHI TIẾT ỨNG VIÊN -->
+            <div class="detail-panel" id="detailPanel">
+                <div style="text-align: center; color: #94a3b8; margin-top: 50px;">
+                    <p>👈 Chọn một ứng viên từ bảng để xem chi tiết.</p>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- MODAL CHI TIẾT -->
-    <div class="modal-overlay" id="detailModal">
+    <!-- ===== MODAL THÊM ỨNG VIÊN ===== -->
+    <div class="modal-overlay" id="addCandidateModal">
         <div class="modal-content">
-            <button class="modal-close" onclick="closeModal()">&times;</button>
-            <div id="modalBody"></div>
+            <button class="modal-close" onclick="closeAddModal()">&times;</button>
+            <h2 style="margin-top: 0; color: #1e293b;">➕ Thêm Ứng viên Mới</h2>
+            
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
+                <input type="text" id="addName" placeholder="Tên người đăng (Bắt buộc)" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                <input type="text" id="addPhone" placeholder="Số điện thoại" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                <input type="text" id="addAddress" placeholder="Địa chỉ cụ thể (Ví dụ: Quận 1, TP.HCM)" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                
+                <select id="addVisa" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                    <option value="">-- Chọn Visa --</option>
+                    <option value="Visa Kỹ sư">Visa Kỹ sư</option>
+                    <option value="Visa Tokutei">Visa Tokutei</option>
+                    <option value="Thực tập sinh">Thực tập sinh</option>
+                </select>
+
+                <input type="text" id="addIndustry" placeholder="Ngành nghề" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                <input type="text" id="addLocation" placeholder="Tỉnh/Thành phố (Ví dụ: Tokyo)" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                <input type="text" id="addJapanese" placeholder="Trình độ tiếng Nhật (N5-N1)" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                <input type="text" id="addGender" placeholder="Giới tính" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                <input type="text" id="addUrl" placeholder="Link bài viết Facebook (nếu có)" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                <textarea id="addContent" placeholder="Nội dung gốc / Tóm tắt..." style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; height: 80px; resize: vertical;"></textarea>
+                
+                <button onclick="submitNewCandidate()" style="padding: 12px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px;">
+                    💾 Lưu Ứng viên
+                </button>
+            </div>
         </div>
     </div>
 
