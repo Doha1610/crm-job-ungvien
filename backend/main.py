@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
+from datetime import datetime, timedelta
 import os
 import sys
 
@@ -20,10 +21,11 @@ FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 # ==========================================
 app.mount("/css", StaticFiles(directory=os.path.join(FRONTEND_DIR, "css")), name="css")
 app.mount("/js", StaticFiles(directory=os.path.join(FRONTEND_DIR, "js")), name="js")
-# Phục vụ thư mục ảnh
+
 # Phục vụ file ảnh từ thư mục gốc
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 app.mount("/logo", StaticFiles(directory=ROOT_DIR), name="logo")
+
 # Cấu hình template HTML
 templates = Jinja2Templates(directory=FRONTEND_DIR)
 
@@ -35,15 +37,40 @@ templates = Jinja2Templates(directory=FRONTEND_DIR)
 def get_candidates(
     visa: str = Query(None), 
     location: str = Query(None), 
-    keyword: str = Query(None)
+    keyword: str = Query(None),
+    time_range: str = Query("all")
 ):
-    """API lấy danh sách ứng viên (có bộ lọc)"""
+    """API lấy danh sách ứng viên (có bộ lọc thời gian)"""
     conn = database.get_connection()
     c = conn.cursor()
     
-    query = "SELECT id, nguoi_gui, visa_mong_muon, nganh_nghe, dia_diem, status FROM candidates WHERE 1=1"
+    # ĐÃ THÊM phone, address
+    query = "SELECT id, nguoi_gui, visa_mong_muon, nganh_nghe, dia_diem, status, assigned_to, created_at, phone, address FROM candidates WHERE 1=1"
     params = []
     
+    # Xử lý lọc theo thời gian
+    if time_range == "this_month":
+        now = datetime.now()
+        start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        query += " AND created_at >= ?"
+        params.append(start_of_month.strftime('%Y-%m-%d %H:%M:%S'))
+        
+    elif time_range == "last_month":
+        now = datetime.now()
+        first_of_this_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_month_end = first_of_this_month - timedelta(days=1)
+        last_month_start = last_month_end.replace(day=1)
+        query += " AND created_at >= ? AND created_at <= ?"
+        params.append(last_month_start.strftime('%Y-%m-%d %H:%M:%S'))
+        params.append(last_month_end.strftime('%Y-%m-%d %H:%M:%S'))
+        
+    elif time_range == "this_year":
+        now = datetime.now()
+        start_of_year = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        query += " AND created_at >= ?"
+        params.append(start_of_year.strftime('%Y-%m-%d %H:%M:%S'))
+    
+    # Các bộ lọc cũ
     if visa and visa != "Tất cả":
         query += " AND visa_mong_muon = ?"
         params.append(visa)
@@ -112,7 +139,7 @@ def get_appointments():
 class NewAppointment(BaseModel):
     candidate_id: int
     title: str
-    appointment_date: str # Định dạng YYYY-MM-DDTHH:MM
+    appointment_date: str
     note: str = None
 
 @app.post("/api/add-appointment")
@@ -129,44 +156,30 @@ def add_appointment(payload: NewAppointment):
         return {"status": "success", "message": "Thêm lịch hẹn thành công"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
 # ==========================================
 # CÁC ROUTE TRẢ VỀ GIAO DIỆN HTML
 # ==========================================
 
 @app.get("/", response_class=HTMLResponse)
 def read_dashboard(request: Request):
-    """Trang chủ Dashboard"""
-    return templates.TemplateResponse(
-        request=request, 
-        name="index.html", 
-        context={}
-    )
+    return templates.TemplateResponse(request=request, name="index.html", context={})
 
 @app.get("/candidates", response_class=HTMLResponse)
 def read_candidates_page(request: Request):
-    """Trang quản lý ứng viên"""
-    return templates.TemplateResponse(
-        request=request, 
-        name="candidates.html", 
-        context={}
-    )
+    return templates.TemplateResponse(request=request, name="candidates.html", context={})
 
 @app.get("/kanban", response_class=HTMLResponse)
 def read_kanban_page(request: Request):
-    """Trang Kanban Board"""
-    return templates.TemplateResponse(
-        request=request, 
-        name="kanban.html", 
-        context={}
-    )
+    return templates.TemplateResponse(request=request, name="kanban.html", context={})
+
 @app.get("/reports", response_class=HTMLResponse)
 def read_reports_page(request: Request):
-    """Trang Thống kê"""
-    return templates.TemplateResponse(
-        request=request, 
-        name="reports.html", 
-        context={}
-    )
+    return templates.TemplateResponse(request=request, name="reports.html", context={})
+
+@app.get("/calendar", response_class=HTMLResponse)
+def read_calendar_page(request: Request):
+    return templates.TemplateResponse(request=request, name="calendar.html", context={})
 
 # API lấy lịch sử tương tác
 @app.get("/api/interactions/{candidate_id}")
@@ -174,7 +187,6 @@ def get_interactions(candidate_id: int):
     conn = database.get_connection()
     df = database.get_interaction_history(candidate_id)
     conn.close()
-    # Chuyển DataFrame sang list dict để trả về JSON
     if df.empty:
         return {"data": []}
     df['created_at'] = df['created_at'].astype(str)
@@ -188,19 +200,17 @@ class NoteUpdate(BaseModel):
 @app.post("/api/add-note")
 def add_note(payload: NoteUpdate):
     try:
-        # Cập nhật ghi chú vào bảng candidates
         conn = database.get_connection()
         c = conn.cursor()
         c.execute("UPDATE candidates SET notes = ? WHERE id = ?", (payload.note_content, payload.candidate_id))
         conn.commit()
         conn.close()
-        
-        # Ghi log
         database.log_interaction(payload.candidate_id, "Thêm ghi chú", "", payload.note_content[:50] + "...")
         return {"status": "success"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
-# API thêm ứng viên mới
+
+# API thêm ứng viên mới (ĐÃ THÊM phone và address)
 class NewCandidate(BaseModel):
     nguoi_gui: str
     visa_mong_muon: str = None
@@ -210,6 +220,8 @@ class NewCandidate(BaseModel):
     gioi_tinh: str = None
     raw_content: str = None
     url_bai_viet: str = None
+    phone: str = None      # <-- Thêm
+    address: str = None    # <-- Thêm
 
 @app.post("/api/add-candidate")
 def add_candidate(payload: NewCandidate):
@@ -217,30 +229,24 @@ def add_candidate(payload: NewCandidate):
         conn = database.get_connection()
         c = conn.cursor()
         c.execute("""
-            INSERT INTO candidates (nguoi_gui, visa_mong_muon, nganh_nghe, dia_diem, trinh_do_tieng_nhat, gioi_tinh, raw_content, url_bai_viet, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Mới')
+            INSERT INTO candidates (nguoi_gui, visa_mong_muon, nganh_nghe, dia_diem, trinh_do_tieng_nhat, gioi_tinh, raw_content, url_bai_viet, status, phone, address)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Mới', ?, ?)
         """, (
             payload.nguoi_gui, payload.visa_mong_muon, payload.nganh_nghe, 
             payload.dia_diem, payload.trinh_do_tieng_nhat, payload.gioi_tinh, 
-            payload.raw_content, payload.url_bai_viet
+            payload.raw_content, payload.url_bai_viet, payload.phone, payload.address
         ))
         new_id = c.lastrowid
         conn.commit()
         conn.close()
-        
-        # Ghi log
         try:
             database.log_interaction(new_id, "Tạo mới", "", "Thêm ứng viên thủ công")
         except:
             pass
-            
         return {"status": "success", "message": "Thêm thành công", "id": new_id}
     except Exception as e:
         return {"status": "error", "message": str(e)}
-    
-@app.get("/calendar", response_class=HTMLResponse)
-def read_calendar_page(request: Request):
-    return templates.TemplateResponse(request=request, name="calendar.html", context={})
+
 # ==========================================
 # CẤU HÌNH PHỤC VỤ FILE HTML TĨNH (SIDEBAR...)
 # LƯU Ý: PHẢI ĐẶT Ở CUỐI CÙNG ĐỂ KHÔNG CHIẾM QUYỀN CÁC ROUTE KHÁC

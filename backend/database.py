@@ -123,6 +123,25 @@ def add_notes_column_if_not_exists():
         conn.close()
 
 
+# ===== HÀM MỚI: THÊM CỘT created_at =====
+def add_created_at_column():
+    """Thêm cột created_at nếu chưa có"""
+    conn = get_connection()
+    c = conn.cursor()
+    try:
+        c.execute("ALTER TABLE candidates ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;")
+        conn.commit()
+        print("✅ Đã thêm cột 'created_at' vào Database!")
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" in str(e):
+            print("ℹ️ Cột 'created_at' đã tồn tại.")
+        else:
+            print(f"❌ Lỗi: {e}")
+    finally:
+        conn.close()
+# =========================================
+
+
 def create_interaction_log_table():
     """Tạo bảng lịch sử tương tác nếu chưa có"""
     conn = get_connection()
@@ -198,13 +217,32 @@ def create_appointments_table():
     conn.commit()
     conn.close()
     print("✅ Bảng 'appointments' đã sẵn sàng!")
+
+def add_contact_columns_if_not_exists():
+    """Thêm cột phone và address nếu chưa có"""
+    conn = get_connection()
+    c = conn.cursor()
+    try:
+        c.execute("ALTER TABLE candidates ADD COLUMN phone TEXT DEFAULT '';")
+        c.execute("ALTER TABLE candidates ADD COLUMN address TEXT DEFAULT '';")
+        conn.commit()
+        print("✅ Đã thêm cột 'phone' và 'address' vào Database!")
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" in str(e):
+            print("ℹ️ Cột 'phone' hoặc 'address' đã tồn tại.")
+        else:
+            print(f"❌ Lỗi: {e}")
+    finally:
+        conn.close()
 if __name__ == "__main__":
     test_connection()
     add_status_column_if_not_exists()
     add_notes_column_if_not_exists()
     add_assigned_column_if_not_exists()  
+    add_created_at_column()  # <-- THÊM DÒNG NÀY
     create_interaction_log_table()
     create_appointments_table()
+    add_contact_columns_if_not_exists()
     print("\n--- Test cập nhật trạng thái ---")
     update_status(1, "Đã liên hệ")
     print("✅ Đã chạy test update_status thành công!")
