@@ -101,6 +101,7 @@
     </style>
 </head>
 <body>
+    <!-- Sidebar được load từ JS -->
     <div id="sidebar-container"></div>
 
     <div class="container">
@@ -110,16 +111,33 @@
                 <h1 style="margin: 0;">👥 Quản lý ứng viên</h1>
                 <p style="color: #64748b; font-size: 14px;">Tìm kiếm, quản lý và chăm sóc ứng viên hiệu quả.</p>
             </div>
-            <!-- Nút mở Modal (đã sửa) -->
+            <!-- Nút mở Modal -->
             <button class="btn-primary" onclick="openAddModal()">➕ Thêm ứng viên</button>
         </div>
 
-        <!-- THANH CÔNG CỤ (FILTER) -->
+        <!-- THANH CÔNG CỤ (FILTER) - Đã thêm ID để sau này viết JS lọc dữ liệu -->
         <div class="toolbar">
-            <select><option>Tất cả Visa</option></select>
-            <select><option>Tất cả Địa điểm</option></select>
-            <select><option>Tất cả Trạng thái</option></select>
-            <input type="text" placeholder="🔍 Tìm kiếm tên, SĐT, ngành nghề...">
+            <select id="filterVisa">
+                <option value="">Tất cả Visa</option>
+                <option value="Visa Kỹ sư">Visa Kỹ sư</option>
+                <option value="Visa Tokutei">Visa Tokutei</option>
+                <option value="Thực tập sinh">Thực tập sinh</option>
+            </select>
+            <select id="filterLocation">
+                <option value="">Tất cả Địa điểm</option>
+                <!-- Sẽ được JS tự động đổ dữ liệu vào -->
+            </select>
+            <select id="filterStatus">
+                <option value="">Tất cả Trạng thái</option>
+                <option value="Mới">Mới</option>
+                <option value="Đã liên hệ">Đã liên hệ</option>
+                <option value="Hẹn phỏng vấn">Hẹn phỏng vấn</option>
+                <option value="Đã phỏng vấn">Đã phỏng vấn</option>
+                <option value="Offer">Offer</option>
+                <option value="Đã tuyển">Đã tuyển</option>
+                <option value="Từ chối">Từ chối</option>
+            </select>
+            <input type="text" id="searchInput" placeholder="🔍 Tìm kiếm tên, SĐT, ngành nghề...">
             <button class="btn-outline">⚙️ Lọc nâng cao</button>
             <button class="btn-outline" onclick="exportCSV()">📥 Xuất CSV</button>
         </div>
@@ -211,6 +229,7 @@
         </div>
     </div>
 
+    <!-- Nhúng các file JS -->
     <script src="/js/sidebar.js"></script>
     <script src="/js/candidates.js"></script>
 </body>

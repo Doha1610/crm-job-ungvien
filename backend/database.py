@@ -234,15 +234,36 @@ def add_contact_columns_if_not_exists():
             print(f"❌ Lỗi: {e}")
     finally:
         conn.close()
+
+def add_status_column():
+    """Thêm cột status vào bảng candidates nếu chưa có."""
+    conn = get_connection()
+    c = conn.cursor()
+    
+    # Kiểm tra cột status đã tồn tại chưa
+    c.execute("PRAGMA table_info(candidates)")
+    columns = [row[1] for row in c.fetchall()]
+    
+    if 'status' in columns:
+        print("✅ Cột 'status' đã tồn tại, không cần thêm.")
+    else:
+        c.execute("ALTER TABLE candidates ADD COLUMN status TEXT DEFAULT 'Mới'")
+        conn.commit()
+        print("✅ Đã thêm cột 'status' với giá trị mặc định 'Mới'.")
+    
+    conn.close()
+
+
 if __name__ == "__main__":
     test_connection()
-    add_status_column_if_not_exists()
+    add_status_column_if_not_exists()  # Chỉ dùng hàm này là đủ để thêm cột status
     add_notes_column_if_not_exists()
     add_assigned_column_if_not_exists()  
-    add_created_at_column()  # <-- THÊM DÒNG NÀY
+    add_created_at_column()
     create_interaction_log_table()
     create_appointments_table()
     add_contact_columns_if_not_exists()
+    
     print("\n--- Test cập nhật trạng thái ---")
     update_status(1, "Đã liên hệ")
     print("✅ Đã chạy test update_status thành công!")

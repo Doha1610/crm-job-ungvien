@@ -39,12 +39,6 @@ function renderTable(data) {
     }
 
     data.forEach((c, index) => {
-        // Xác định class badge dựa trên trạng thái
-        let badgeClass = 'badge-moi';
-        if (c.status === 'Đã liên hệ') badgeClass = 'badge-lienhe';
-        if (c.status === 'Hẹn phỏng vấn' || c.status === 'Đã phỏng vấn' || c.status === 'Offer') badgeClass = 'badge-tiemnang';
-        if (c.status === 'Đã tuyển') badgeClass = 'badge-tuyen';
-
         // Hiển thị số điện thoại thật (nếu có), nếu không thì để trống
         const phoneDisplay = c.phone ? `📞 ${c.phone}` : '📞 Chưa có SĐT';
 
@@ -63,15 +57,26 @@ function renderTable(data) {
             </td>
             <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${c.visa_mong_muon || 'N/A'}</span></td>
             <td>📍 ${c.dia_diem || 'N/A'}</td>
-            <td><span class="badge ${badgeClass}">● ${c.status || 'Mới'}</span></td>
+            <td>
+                <!-- ĐÃ THAY ĐỔI: Dùng thẻ select thay vì span tĩnh -->
+                <select class="status-select" onchange="updateCandidateStatus(${c.id}, this.value)" style="padding: 4px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12px; cursor: pointer; outline: none;">
+                    <option value="Mới" ${c.status === 'Mới' ? 'selected' : ''}>Mới</option>
+                    <option value="Đã liên hệ" ${c.status === 'Đã liên hệ' ? 'selected' : ''}>Đã liên hệ</option>
+                    <option value="Hẹn phỏng vấn" ${c.status === 'Hẹn phỏng vấn' ? 'selected' : ''}>Hẹn phỏng vấn</option>
+                    <option value="Đã phỏng vấn" ${c.status === 'Đã phỏng vấn' ? 'selected' : ''}>Đã phỏng vấn</option>
+                    <option value="Offer" ${c.status === 'Offer' ? 'selected' : ''}>Offer</option>
+                    <option value="Đã tuyển" ${c.status === 'Đã tuyển' ? 'selected' : ''}>Đã tuyển</option>
+                    <option value="Từ chối" ${c.status === 'Từ chối' ? 'selected' : ''}>Từ chối</option>
+                </select>
+            </td>
             <td>${c.assigned_to || 'Chưa phân công'}</td>
             <td style="color: #94a3b8; cursor: pointer;">...</td>
         `;
         
         // Gắn sự kiện click để xem chi tiết
         tr.onclick = function(e) {
-            // Nếu click vào checkbox thì không mở chi tiết
-            if (e.target.type === 'checkbox') return;
+            // Nếu click vào checkbox hoặc select thì không mở chi tiết
+            if (e.target.type === 'checkbox' || e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
             
             // Xóa class active của các dòng khác
             document.querySelectorAll('#candidateTable tbody tr').forEach(row => row.classList.remove('active'));
@@ -83,6 +88,46 @@ function renderTable(data) {
 
         tbody.appendChild(tr);
     });
+}
+
+// Hàm gọi API cập nhật trạng thái khi người dùng thay đổi dropdown
+async function updateCandidateStatus(candidateId, newStatus) {
+    try {
+        const response = await fetch('/api/update-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                candidate_id: candidateId,
+                new_status: newStatus
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Cập nhật lại object trong mảng allCandidates để thống kê đúng
+            const candidate = allCandidates.find(c => c.id === candidateId);
+            if (candidate) candidate.status = newStatus;
+            
+            // Vẽ lại phần thống kê (4 ô số liệu) ngay lập tức
+            renderStats(allCandidates);
+            
+            // Nếu đang xem chi tiết ứng viên này ở panel bên phải, cập nhật lại panel
+            const activeDetail = document.querySelector('#detailPanel .detail-name');
+            if (activeDetail && activeDetail.innerText === candidate.nguoi_gui) {
+                showDetail(candidateId); 
+            }
+        } else {
+            alert("Lỗi khi cập nhật: " + result.message);
+            loadCandidates(); // Load lại nếu lỗi
+        }
+    } catch (error) {
+        console.error("Lỗi kết nối API:", error);
+        alert("Không thể kết nối đến server!");
+        loadCandidates(); // Load lại nếu lỗi
+    }
 }
 
 // Hàm hiển thị chi tiết bên phải
@@ -205,7 +250,7 @@ function submitNewCandidate() {
     .catch(err => alert('Lỗi kết nối: ' + err));
 }
 
-// Hàm xuất CSV (Giữ nguyên từ code cũ)
+// Hàm xuất CSV
 function exportCSV() {
     if (allCandidates.length === 0) {
         alert("Không có dữ liệu để xuất!");
@@ -227,3 +272,79 @@ function exportCSV() {
     link.click();
     document.body.removeChild(link);
 }
+// ===== TÍNH NĂNG LỌC VÀ TÌM KIẾM =====
+
+// Hàm lấy danh sách địa điểm duy nhất từ dữ liệu để đổ vào ô Select
+function populateLocationFilter(data) {
+    const locationSelect = document.getElementById('filterLocation');
+    if (!locationSelect) return;
+    
+    // Lấy các địa điểm duy nhất
+    const locations = [...new Set(data.map(c => c.dia_diem).filter(Boolean))];
+    
+    // Lưu lại option mặc định
+    locationSelect.innerHTML = '<option value="">Tất cả Địa điểm</option>';
+    
+    // Thêm các địa điểm vào
+    locations.forEach(loc => {
+        const option = document.createElement('option');
+        option.value = loc;
+        option.textContent = loc;
+        locationSelect.appendChild(option);
+    });
+}
+
+// Hàm thực hiện lọc dữ liệu
+function applyFilters() {
+    const visa = document.getElementById('filterVisa').value;
+    const location = document.getElementById('filterLocation').value;
+    const status = document.getElementById('filterStatus').value;
+    const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
+
+    const filteredData = allCandidates.filter(c => {
+        // Lọc theo Visa
+        if (visa && c.visa_mong_muon !== visa) return false;
+        
+        // Lọc theo Địa điểm
+        if (location && c.dia_diem !== location) return false;
+        
+        // Lọc theo Trạng thái
+        if (status && c.status !== status) return false;
+        
+        // Lọc theo từ khóa (Tên, SĐT, Ngành nghề)
+        if (keyword) {
+            const name = (c.nguoi_gui || '').toLowerCase();
+            const phone = (c.phone || '').toLowerCase();
+            const industry = (c.nganh_nghe || '').toLowerCase();
+            if (!name.includes(keyword) && !phone.includes(keyword) && !industry.includes(keyword)) {
+                return false;
+            }
+        }
+        
+        return true; // Thỏa mãn tất cả điều kiện
+    });
+
+    // Vẽ lại bảng với dữ liệu đã lọc
+    renderTable(filteredData);
+}
+
+// Gắn sự kiện cho các ô lọc khi trang tải xong
+document.addEventListener("DOMContentLoaded", function() {
+    // Chờ load dữ liệu xong mới đổ địa điểm vào
+    const checkData = setInterval(() => {
+        if (allCandidates.length > 0) {
+            populateLocationFilter(allCandidates);
+            clearInterval(checkData);
+        }
+    }, 500);
+
+    // Gắn sự kiện 'change' cho các thẻ select và 'input' cho ô tìm kiếm
+    const filterIds = ['filterVisa', 'filterLocation', 'filterStatus', 'searchInput'];
+    filterIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', applyFilters);
+            el.addEventListener('input', applyFilters); // Dùng cho ô text
+        }
+    });
+});
