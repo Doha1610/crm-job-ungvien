@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>HelloJob - Đăng nhập</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; background: #f1f5f9; margin: 0; }
+        .login-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 350px; }
+        .login-box h2 { text-align: center; color: #1e293b; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 5px; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; }
+        .btn-login { width: 100%; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-login:hover { background: #2563eb; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2>🔐 Đăng nhập HelloJob</h2>
+        <div class="form-group">
+            <label>Tên đăng nhập</label>
+            <input type="text" id="username" placeholder="admin">
+        </div>
+        <div class="form-group">
+            <label>Mật khẩu</label>
+            <input type="password" id="password" placeholder="admin123">
+        </div>
+        <button class="btn-login" onclick="login()">Đăng nhập</button>
+    </div>
+
+    <script>
+        function login() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (!username || !password) {
+                alert("Vui lòng nhập đầy đủ thông tin!");
+                return;
+            }
+
+            fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Lưu thông tin đăng nhập vào localStorage
+                    localStorage.setItem('currentUser', JSON.stringify(data.data));
+                    
+                    // Chuyển hướng dựa theo vai trò
+                    if (data.data.role === 'admin') {
+                        window.location.href = '/admin/';
+                    } else {
+                        window.location.href = '/hr/'; // Tạm thời
+                    }
+                } else {
+                    alert("❌ " + data.message);
+                }
+            })
+            .catch(err => alert("Lỗi kết nối server!"));
+        }
+    </script>
+</body>
+</html>

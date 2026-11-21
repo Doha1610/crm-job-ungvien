@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>HelloJob CRM - Dashboard</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="../css/style.css">
     <!-- Nhúng Chart.js để vẽ biểu đồ -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -80,7 +80,6 @@
             <!-- Bên phải -->
             <div style="display: flex; align-items: center; gap: 20px; margin-left: 20px;">
                 <!-- Bộ lọc thời gian -->
-                               <!-- Bộ lọc thời gian (ĐÃ THAY ĐỔI) -->
                 <select id="timeFilter" style="padding: 6px 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f1f5f9; font-size: 13px; color: #475569; font-weight: 600; cursor: pointer; outline: none;">
                     <option value="all">📅 Tất cả thời gian</option>
                     <option value="this_month" selected>📅 Tháng này</option>
@@ -128,7 +127,8 @@
                 <div class="card" style="padding: 20px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
                         <h3 style="margin: 0;">📌 Kanban Board</h3>
-                        <a href="/kanban" style="color: #3b82f6; text-decoration: none; font-weight: 600;">Xem chi tiết →</a>
+                        <!-- ĐÃ SỬA ĐƯỜNG DẪN KANBAN -->
+                        <a href="/hr/kanban" style="color: #3b82f6; text-decoration: none; font-weight: 600;">Xem chi tiết →</a>
                     </div>
                     <div class="kanban-mini" id="kanbanMini"></div>
                 </div>
@@ -162,7 +162,7 @@
         </div>
     </div>
 
-    <script src="/js/sidebar.js"></script>
-    <script src="/js/dashboard.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script src="../js/dashboard.js"></script>
 </body>
 </html>

@@ -2,6 +2,16 @@ let allCandidates = []; // Lưu trữ dữ liệu toàn cục
 
 document.addEventListener("DOMContentLoaded", function() {
     loadCandidates();
+
+    // Gắn sự kiện cho các ô lọc
+    const filterIds = ['filterVisa', 'filterLocation', 'filterStatus', 'searchInput'];
+    filterIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', applyFilters);
+            el.addEventListener('input', applyFilters); // Dùng cho ô text
+        }
+    });
 });
 
 function loadCandidates() {
@@ -11,6 +21,7 @@ function loadCandidates() {
             allCandidates = data.data;
             renderTable(allCandidates);
             renderStats(allCandidates);
+            populateLocationFilter(allCandidates); // Đổ dữ liệu địa điểm vào bộ lọc
         })
         .catch(err => console.error("Lỗi tải dữ liệu:", err));
 }
@@ -39,7 +50,6 @@ function renderTable(data) {
     }
 
     data.forEach((c, index) => {
-        // Hiển thị số điện thoại thật (nếu có), nếu không thì để trống
         const phoneDisplay = c.phone ? `📞 ${c.phone}` : '📞 Chưa có SĐT';
 
         const tr = document.createElement('tr');
@@ -58,7 +68,6 @@ function renderTable(data) {
             <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${c.visa_mong_muon || 'N/A'}</span></td>
             <td>📍 ${c.dia_diem || 'N/A'}</td>
             <td>
-                <!-- ĐÃ THAY ĐỔI: Dùng thẻ select thay vì span tĩnh -->
                 <select class="status-select" onchange="updateCandidateStatus(${c.id}, this.value)" style="padding: 4px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12px; cursor: pointer; outline: none;">
                     <option value="Mới" ${c.status === 'Mới' ? 'selected' : ''}>Mới</option>
                     <option value="Đã liên hệ" ${c.status === 'Đã liên hệ' ? 'selected' : ''}>Đã liên hệ</option>
@@ -73,14 +82,11 @@ function renderTable(data) {
             <td style="color: #94a3b8; cursor: pointer;">...</td>
         `;
         
-        // Gắn sự kiện click để xem chi tiết
         tr.onclick = function(e) {
             // Nếu click vào checkbox hoặc select thì không mở chi tiết
             if (e.target.type === 'checkbox' || e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
             
-            // Xóa class active của các dòng khác
             document.querySelectorAll('#candidateTable tbody tr').forEach(row => row.classList.remove('active'));
-            // Thêm class active cho dòng hiện tại
             tr.classList.add('active');
             
             showDetail(c.id);
@@ -90,43 +96,36 @@ function renderTable(data) {
     });
 }
 
-// Hàm gọi API cập nhật trạng thái khi người dùng thay đổi dropdown
+// Hàm gọi API cập nhật trạng thái
 async function updateCandidateStatus(candidateId, newStatus) {
     try {
         const response = await fetch('/api/update-status', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                candidate_id: candidateId,
-                new_status: newStatus
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ candidate_id: candidateId, new_status: newStatus })
         });
 
         const result = await response.json();
 
         if (response.ok) {
-            // Cập nhật lại object trong mảng allCandidates để thống kê đúng
             const candidate = allCandidates.find(c => c.id === candidateId);
             if (candidate) candidate.status = newStatus;
             
-            // Vẽ lại phần thống kê (4 ô số liệu) ngay lập tức
             renderStats(allCandidates);
             
-            // Nếu đang xem chi tiết ứng viên này ở panel bên phải, cập nhật lại panel
+            // Nếu đang xem chi tiết ứng viên này, cập nhật lại panel bên phải
             const activeDetail = document.querySelector('#detailPanel .detail-name');
             if (activeDetail && activeDetail.innerText === candidate.nguoi_gui) {
                 showDetail(candidateId); 
             }
         } else {
             alert("Lỗi khi cập nhật: " + result.message);
-            loadCandidates(); // Load lại nếu lỗi
+            loadCandidates();
         }
     } catch (error) {
         console.error("Lỗi kết nối API:", error);
         alert("Không thể kết nối đến server!");
-        loadCandidates(); // Load lại nếu lỗi
+        loadCandidates();
     }
 }
 
@@ -156,12 +155,12 @@ function showDetail(id) {
             });
         }
 
-        // Xác định class badge
         let badgeClass = 'badge-moi';
         if (c.status === 'Đã liên hệ') badgeClass = 'badge-lienhe';
         if (c.status === 'Hẹn phỏng vấn' || c.status === 'Đã phỏng vấn' || c.status === 'Offer') badgeClass = 'badge-tiemnang';
         if (c.status === 'Đã tuyển') badgeClass = 'badge-tuyen';
 
+        // Render HTML cho Panel chi tiết
         panel.innerHTML = `
             <div class="detail-header">
                 <div class="detail-avatar">👤</div>
@@ -181,7 +180,14 @@ function showDetail(id) {
                 <div class="detail-row"><span>Nguồn</span><span>Facebook</span></div>
             </div>
 
-            <div class="detail-section">
+            <!-- PHẦN GHI CHÚ NỘI BỘ (Đã đặt đúng vị trí) -->
+            <div class="note-section">
+                <h4>📝 Ghi chú nội bộ</h4>
+                <textarea id="noteInput" placeholder="Nhập ghi chú cho ứng viên này...">${c.notes || ''}</textarea>
+                <button onclick="saveNote(${c.id})">💾 Lưu ghi chú</button>
+            </div>
+
+            <div class="detail-section" style="margin-top: 20px;">
                 <h4>Lịch sử chăm sóc</h4>
                 <div class="timeline">
                     ${historyHtml}
@@ -191,7 +197,8 @@ function showDetail(id) {
             <div class="action-buttons">
                 <button class="btn-call">📞 Gọi điện</button>
                 <button class="btn-msg">💬 Nhắn tin</button>
-                <button class="btn-book" onclick="window.location.href='/calendar'">📅 Đặt lịch</button>
+                <button class="btn-book" onclick="window.location.href='/hr/calendar'">📅 Đặt lịch</button>
+                <button class="btn-primary" onclick="openAssignModal(${c.id})">📦 Gán vào đơn hàng</button>
             </div>
         `;
     }).catch(err => {
@@ -199,15 +206,47 @@ function showDetail(id) {
     });
 }
 
-// ===== CÁC HÀM XỬ LÝ MODAL THÊM ỨNG VIÊN =====
+// Hàm lưu ghi chú
+async function saveNote(candidateId) {
+    const noteInput = document.getElementById('noteInput');
+    const noteContent = noteInput.value.trim();
 
+    if (!noteContent) {
+        alert("Vui lòng nhập nội dung ghi chú!");
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/add-note', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                candidate_id: candidateId,
+                note_content: noteContent
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert("✅ Đã lưu ghi chú thành công!");
+            showDetail(candidateId); // Load lại chi tiết để thấy ghi chú mới trong timeline
+        } else {
+            alert("Lỗi: " + result.message);
+        }
+    } catch (error) {
+        console.error("Lỗi:", error);
+        alert("Không thể kết nối đến server!");
+    }
+}
+
+// ===== CÁC HÀM XỬ LÝ MODAL THÊM ỨNG VIÊN =====
 function openAddModal() {
     document.getElementById('addCandidateModal').style.display = 'flex';
 }
 
 function closeAddModal() {
     document.getElementById('addCandidateModal').style.display = 'none';
-    // Xóa trắng form
     document.querySelectorAll('#addCandidateModal input, #addCandidateModal textarea').forEach(el => el.value = '');
     document.getElementById('addVisa').value = '';
 }
@@ -242,7 +281,7 @@ function submitNewCandidate() {
         if (data.status === 'success') {
             alert('✅ Đã thêm ứng viên thành công!');
             closeAddModal();
-            loadCandidates(); // Tải lại bảng
+            loadCandidates();
         } else {
             alert('❌ Lỗi: ' + data.message);
         }
@@ -272,20 +311,14 @@ function exportCSV() {
     link.click();
     document.body.removeChild(link);
 }
-// ===== TÍNH NĂNG LỌC VÀ TÌM KIẾM =====
 
-// Hàm lấy danh sách địa điểm duy nhất từ dữ liệu để đổ vào ô Select
+// ===== TÍNH NĂNG LỌC VÀ TÌM KIẾM =====
 function populateLocationFilter(data) {
     const locationSelect = document.getElementById('filterLocation');
     if (!locationSelect) return;
     
-    // Lấy các địa điểm duy nhất
     const locations = [...new Set(data.map(c => c.dia_diem).filter(Boolean))];
-    
-    // Lưu lại option mặc định
     locationSelect.innerHTML = '<option value="">Tất cả Địa điểm</option>';
-    
-    // Thêm các địa điểm vào
     locations.forEach(loc => {
         const option = document.createElement('option');
         option.value = loc;
@@ -294,7 +327,6 @@ function populateLocationFilter(data) {
     });
 }
 
-// Hàm thực hiện lọc dữ liệu
 function applyFilters() {
     const visa = document.getElementById('filterVisa').value;
     const location = document.getElementById('filterLocation').value;
@@ -302,16 +334,10 @@ function applyFilters() {
     const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
 
     const filteredData = allCandidates.filter(c => {
-        // Lọc theo Visa
         if (visa && c.visa_mong_muon !== visa) return false;
-        
-        // Lọc theo Địa điểm
         if (location && c.dia_diem !== location) return false;
-        
-        // Lọc theo Trạng thái
         if (status && c.status !== status) return false;
         
-        // Lọc theo từ khóa (Tên, SĐT, Ngành nghề)
         if (keyword) {
             const name = (c.nguoi_gui || '').toLowerCase();
             const phone = (c.phone || '').toLowerCase();
@@ -320,31 +346,73 @@ function applyFilters() {
                 return false;
             }
         }
-        
-        return true; // Thỏa mãn tất cả điều kiện
+        return true;
     });
 
-    // Vẽ lại bảng với dữ liệu đã lọc
     renderTable(filteredData);
 }
+// Hàm mở Modal gán ứng viên vào đơn hàng
+async function openAssignModal(candidateId) {
+    // Lấy danh sách đơn hàng
+    const response = await fetch('/api/job-orders');
+    const data = await response.json();
+    const jobOrders = data.data;
 
-// Gắn sự kiện cho các ô lọc khi trang tải xong
-document.addEventListener("DOMContentLoaded", function() {
-    // Chờ load dữ liệu xong mới đổ địa điểm vào
-    const checkData = setInterval(() => {
-        if (allCandidates.length > 0) {
-            populateLocationFilter(allCandidates);
-            clearInterval(checkData);
-        }
-    }, 500);
+    if (jobOrders.length === 0) {
+        alert("Chưa có đơn hàng nào. Vui lòng tạo đơn hàng trước!");
+        return;
+    }
 
-    // Gắn sự kiện 'change' cho các thẻ select và 'input' cho ô tìm kiếm
-    const filterIds = ['filterVisa', 'filterLocation', 'filterStatus', 'searchInput'];
-    filterIds.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('change', applyFilters);
-            el.addEventListener('input', applyFilters); // Dùng cho ô text
-        }
+    // Tạo HTML cho Modal
+    let modalHtml = `
+        <div class="modal-overlay" id="assignModal" style="display: flex;">
+            <div class="modal-content">
+                <button class="modal-close" onclick="closeAssignModal()">&times;</button>
+                <h2 style="margin-top: 0;">📦 Gán vào Đơn hàng</h2>
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
+                    <label>Chọn đơn hàng:</label>
+                    <select id="assignJobOrderId" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                        ${jobOrders.map(job => `<option value="${job.id}">${job.title} (${job.location || 'N/A'})</option>`).join('')}
+                    </select>
+                    <label>Ghi chú (nếu có):</label>
+                    <textarea id="assignNote" placeholder="Ghi chú thêm..." style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; height: 60px;"></textarea>
+                    <button onclick="submitAssign(${candidateId})" style="padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">💾 Xác nhận</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Thêm Modal vào body
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = modalHtml;
+    document.body.appendChild(tempDiv.firstElementChild);
+}
+
+function closeAssignModal() {
+    const modal = document.getElementById('assignModal');
+    if (modal) modal.remove();
+}
+
+async function submitAssign(candidateId) {
+    const jobOrderId = document.getElementById('assignJobOrderId').value;
+    const note = document.getElementById('assignNote').value.trim();
+
+    const response = await fetch('/api/add-application', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            candidate_id: candidateId,
+            job_order_id: parseInt(jobOrderId),
+            note: note
+        })
     });
-});
+
+    const result = await response.json();
+    if (result.status === 'success') {
+        alert("✅ Đã gán ứng viên vào đơn hàng thành công!");
+        closeAssignModal();
+        showDetail(candidateId); // Load lại chi tiết
+    } else {
+        alert("❌ Lỗi: " + result.message);
+    }
+}

@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <title>HelloJob CRM - Lịch hẹn</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <!-- Đường dẫn CSS đã sửa thành ../ -->
+    <link rel="stylesheet" href="../css/style.css">
     <!-- Nhúng FullCalendar -->
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
 </head>
 <body>
+    <!-- Sidebar sẽ được JS tải vào đây -->
     <div id="sidebar-container"></div>
 
     <div class="container">
@@ -23,7 +25,8 @@
     </div>
 
     <!-- MODAL THÊM LỊCH HẸN -->
-    <div class="modal-overlay" id="appointmentModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <!-- ĐÃ XÓA style="display: none;" ĐỂ MODAL CÓ THỂ HIỆN -->
+    <div class="modal-overlay" id="appointmentModal">
         <div class="modal-content" style="background: white; width: 400px; padding: 24px; border-radius: 12px;">
             <button onclick="closeAppointmentModal()" style="float: right; border: none; background: none; font-size: 20px; cursor: pointer;">&times;</button>
             <h2>➕ Thêm lịch hẹn</h2>
@@ -40,7 +43,8 @@
         </div>
     </div>
 
-    <script src="/js/sidebar.js"></script>
-    <script src="/js/calendar.js"></script>
+    <!-- Đường dẫn JS đã sửa thành ../ -->
+    <script src="../js/sidebar.js"></script>
+    <script src="../js/calendar.js"></script>
 </body>
 </html>

@@ -1,10 +1,10 @@
-// Định nghĩa các cột (Trạng thái)
+// Định nghĩa các cột (Trạng thái) và class CSS tương ứng
 const COLUMNS = [
     { status: "Mới", class: "col-new" },
     { status: "Đã liên hệ", class: "col-contacted" },
-    { status: "Hẹn phỏng vấn", class: "col-interview" },
-    { status: "Đã phỏng vấn", class: "col-interview" },
-    { status: "Offer", class: "col-hired" },
+    { status: "Hẹn phỏng vấn", class: "col-scheduled" },
+    { status: "Đã phỏng vấn", class: "col-interviewed" },
+    { status: "Offer", class: "col-offer" },
     { status: "Đã tuyển", class: "col-hired" },
     { status: "Từ chối", class: "col-rejected" }
 ];
@@ -52,7 +52,8 @@ function renderKanban(candidates) {
         filteredCandidates.forEach(c => {
             const card = document.createElement('div');
             card.className = 'kanban-card';
-            card.setAttribute('data-id', c.id);
+            // Lưu ID vào data-id để tí nữa gọi API
+            card.setAttribute('data-id', c.id); 
             card.innerHTML = `
                 <div class="name">${c.nguoi_gui || 'Không rõ'}</div>
                 <div class="info">${c.nganh_nghe || 'N/A'} - ${c.dia_diem || 'N/A'}</div>
@@ -69,15 +70,26 @@ function renderKanban(candidates) {
                 // Khi kéo thả xong
                 const candidateId = evt.item.getAttribute('data-id');
                 const newStatus = evt.to.getAttribute('data-status');
+                const oldStatus = evt.from.getAttribute('data-status');
                 
+                // Nếu kéo qua lại cùng một cột thì bỏ qua
+                if (newStatus === oldStatus) return;
+
                 // Gọi API cập nhật trạng thái xuống Database
                 updateStatusKanban(candidateId, newStatus);
-                
-                // Cập nhật lại số lượng badge (đơn giản là tải lại trang)
-                // Hoặc bạn có thể viết code JS để đếm lại, nhưng tải lại cho nhanh
-                setTimeout(() => loadKanbanData(), 300);
+
+                // Cập nhật lại số lượng thẻ trên giao diện ngay lập tức (không cần load lại trang)
+                updateColumnCounts();
             }
         });
+    });
+}
+
+// Hàm đếm lại số lượng thẻ trên mỗi cột
+function updateColumnCounts() {
+    document.querySelectorAll('.kanban-column').forEach(col => {
+        const items = col.querySelectorAll('.kanban-card').length;
+        col.querySelector('.count-badge').innerText = items;
     });
 }
 
@@ -94,7 +106,14 @@ function updateStatusKanban(candidateId, newStatus) {
     .then(data => {
         if (data.status === 'success') {
             console.log(`✅ Đã chuyển ứng viên #${candidateId} sang ${newStatus}`);
+        } else {
+            alert("Có lỗi xảy ra khi cập nhật trạng thái!");
+            loadKanbanData(); // Nếu lỗi thì load lại cho đúng
         }
     })
-    .catch(error => console.error('Lỗi cập nhật:', error));
+    .catch(error => {
+        console.error('Lỗi cập nhật:', error);
+        alert("Không thể kết nối đến server!");
+        loadKanbanData();
+    });
 }

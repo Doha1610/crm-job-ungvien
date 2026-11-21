@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>HelloJob CRM - Kanban Board</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="../css/style.css">
     <!-- Nhúng thư viện SortableJS để kéo thả -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
@@ -78,11 +78,16 @@
         }
         
         /* Màu viền trái cho từng cột */
-        .col-new .kanban-card { border-left-color: #3b82f6; }
-        .col-contacted .kanban-card { border-left-color: #f59e0b; }
-        .col-interview .kanban-card { border-left-color: #8b5cf6; }
-        .col-hired .kanban-card { border-left-color: #10b981; }
-        .col-rejected .kanban-card { border-left-color: #ef4444; }
+        .col-new .kanban-card { border-left-color: #3b82f6; }      /* Mới - Xanh dương */
+        .col-contacted .kanban-card { border-left-color: #f59e0b; } /* Đã liên hệ - Vàng */
+        .col-scheduled .kanban-card { border-left-color: #8b5cf6; } /* Hẹn PV - Tím */
+        .col-interviewed .kanban-card { border-left-color: #6366f1; }/* Đã PV - Chàm */
+        .col-offer .kanban-card { border-left-color: #14b8a6; }     /* Offer - Xanh ngọc */
+        .col-hired .kanban-card { border-left-color: #10b981; }     /* Đã tuyển - Xanh lá */
+        .col-rejected .kanban-card { border-left-color: #ef4444; }  /* Từ chối - Đỏ */
+
+        /* Hiệu ứng khi kéo */
+        .sortable-ghost { opacity: 0.4; background: #e2e8f0; }
     </style>
 </head>
 <body>
@@ -101,7 +106,7 @@
     </div>
 
     <!-- Nhúng các file JS -->
-    <script src="/js/sidebar.js"></script>
-    <script src="/js/kanban.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script src="../js/kanban.js"></script>
 </body>
 </html>

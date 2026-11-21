@@ -136,12 +136,12 @@ function showDetail(id) {
                     <div class="label">Lịch chăm sóc tiếp theo</div>
                     <div class="date">📅 ${c.next_appointment || 'Chưa có lịch'}</div>
                 </div>
-                <button class="btn-blue" onclick="window.location.href='/calendar'">Đặt lịch</button>
+                <button class="btn-blue" onclick="window.location.href='/hr/calendar'">Đặt lịch</button>
             </div>
 
             <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button class="btn-blue" style="flex: 1;" onclick="window.location.href='/candidates'">💾 Cập nhật</button>
-                <button class="btn-outline" style="flex: 1;" onclick="window.location.href='/candidates'">📝 Ghi chú</button>
+                <button class="btn-blue" style="flex: 1;" onclick="window.location.href='/hr/candidates'">💾 Cập nhật</button>
+                <button class="btn-outline" style="flex: 1;" onclick="window.location.href='/hr/candidates'">📝 Ghi chú</button>
             </div>
         `;
     }).catch(err => {

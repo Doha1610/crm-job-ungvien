@@ -5,9 +5,12 @@ document.addEventListener("DOMContentLoaded", function() {
     const sidebarContainer = document.getElementById('sidebar-container');
     
     if (sidebarContainer) {
-        // Tải nội dung file sidebar.html
-        fetch('/sidebar.html')
-            .then(response => response.text())
+        // Tải nội dung file sidebar.html từ thư mục hr/
+        fetch('/hr/sidebar.html', { cache: 'no-store' })
+            .then(response => {
+                if (!response.ok) throw new Error("Không tìm thấy file sidebar.html");
+                return response.text();
+            })
             .then(html => {
                 sidebarContainer.innerHTML = html;
                 
@@ -18,11 +21,13 @@ document.addEventListener("DOMContentLoaded", function() {
                 menuItems.forEach(item => {
                     const page = item.getAttribute('data-page');
                     
-                    // Logic highlight: Nếu đường dẫn hiện tại khớp với menu
+                    // Logic highlight cho TẤT CẢ các trang
                     if (
-                        (currentPath === '/' && page === 'dashboard') ||
+                        ((currentPath === '/' || currentPath === '/hr/' || currentPath === '/hr') && page === 'dashboard') ||
                         (currentPath.includes('candidates') && page === 'candidates') ||
                         (currentPath.includes('kanban') && page === 'kanban') ||
+                        (currentPath.includes('calendar') && page === 'calendar') ||
+                        (currentPath.includes('job_orders') && page === 'job_orders') ||
                         (currentPath.includes('reports') && page === 'reports')
                     ) {
                         item.classList.add('active');

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>HelloJob Admin - Dashboard</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <!-- Nhúng Chart.js để vẽ biểu đồ -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .metric-card { background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
+        .metric-title { color: #64748b; font-size: 13px; font-weight: 600; }
+        .metric-value { font-size: 26px; font-weight: 700; color: #1e293b; margin: 8px 0; }
+        .charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 20px; }
+        .chart-box { background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; height: 300px; }
+    </style>
+</head>
+<body>
+    <!-- Sidebar của Admin -->
+    <div id="sidebar-container"></div>
+
+    <div class="container">
+        <h1>👑 Tổng quan Hệ thống (Admin)</h1>
+        <p style="color: #64748b;">Chào mừng trở lại, Quản trị viên!</p>
+
+        <!-- Metrics -->
+        <div class="metrics-grid">
+            <div class="metric-card"><div class="metric-title">👥 Tổng ứng viên</div><div class="metric-value" id="totalCandidates">0</div></div>
+            <div class="metric-card"><div class="metric-title">📦 Tổng đơn hàng</div><div class="metric-value" id="totalJobs">0</div></div>
+            <div class="metric-card"><div class="metric-title">✅ Đã tuyển</div><div class="metric-value" id="totalHired">0</div></div>
+            <div class="metric-card"><div class="metric-title">👤 Nhân sự</div><div class="metric-value" id="totalUsers">0</div></div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+            <div class="chart-box"><canvas id="chartCandidates"></canvas></div>
+            <div class="chart-box"><canvas id="chartJobs"></canvas></div>
+        </div>
+    </div>
+
+    <script src="../js/sidebar_admin.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Tạm thời hiển thị số liệu giả lập, sau này sẽ gọi API
+            document.getElementById('totalCandidates').innerText = '0';
+            document.getElementById('totalJobs').innerText = '0';
+            document.getElementById('totalHired').innerText = '0';
+            document.getElementById('totalUsers').innerText = '0';
+        });
+    </script>
+</body>
+</html>

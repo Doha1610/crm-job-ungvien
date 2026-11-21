@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>HelloJob CRM - Quản lý Ứng viên</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="../css/style.css">
     <style>
         /* Layout 2 cột */
         .candidates-layout {
@@ -98,6 +98,49 @@
         .modal-content { background: white; width: 500px; max-width: 90%; border-radius: 12px; padding: 24px; position: relative; max-height: 90vh; overflow-y: auto; }
         .modal-close { position: absolute; top: 15px; right: 20px; border: none; background: none; font-size: 24px; cursor: pointer; color: #64748b; }
         .modal-close:hover { color: #ef4444; }
+
+                /* CSS cho phần Ghi chú */
+        .note-section {
+            margin-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 15px;
+        }
+        .note-section h4 {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 10px;
+        }
+        .note-section textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 13px;
+            resize: vertical;
+            height: 80px;
+            font-family: inherit;
+            outline: none;
+        }
+        .note-section textarea:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+        .note-section button {
+            margin-top: 8px;
+            padding: 8px 16px;
+            background: #f59e0b;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        .note-section button:hover {
+            background: #d97706;
+        }
     </style>
 </head>
 <body>
@@ -230,7 +273,7 @@
     </div>
 
     <!-- Nhúng các file JS -->
-    <script src="/js/sidebar.js"></script>
-    <script src="/js/candidates.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script src="../js/candidates.js"></script>
 </body>
 </html>
