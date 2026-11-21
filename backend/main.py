@@ -1,12 +1,13 @@
 from fastapi import FastAPI, Request, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from datetime import datetime, timedelta
+from pydantic import BaseModel
 import os
 import sys
-
+import hashlib
 # Thêm thư mục backend vào path để import database
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import database
@@ -15,6 +16,7 @@ app = FastAPI(title="CRM Job API")
 
 # Đường dẫn tới thư mục frontend
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
+HR_DIR = os.path.join(FRONTEND_DIR, "hr") # Đường dẫn tới thư mục HR
 
 # ==========================================
 # CẤU HÌNH PHỤC VỤ FILE TĨNH (CSS, JS)
@@ -26,8 +28,9 @@ app.mount("/js", StaticFiles(directory=os.path.join(FRONTEND_DIR, "js")), name="
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 app.mount("/logo", StaticFiles(directory=ROOT_DIR), name="logo")
 
-# Cấu hình template HTML
-templates = Jinja2Templates(directory=FRONTEND_DIR)
+# Cấu hình template HTML (TRỎ VÀO THƯ MỤC HR)
+templates = Jinja2Templates(directory=HR_DIR)
+admin_templates = Jinja2Templates(directory=os.path.join(FRONTEND_DIR, "admin"))
 
 # ==========================================
 # CÁC API (BACKEND)
@@ -44,11 +47,9 @@ def get_candidates(
     conn = database.get_connection()
     c = conn.cursor()
     
-    # ĐÃ THÊM phone, address
     query = "SELECT id, nguoi_gui, visa_mong_muon, nganh_nghe, dia_diem, status, assigned_to, created_at, phone, address FROM candidates WHERE 1=1"
     params = []
     
-    # Xử lý lọc theo thời gian
     if time_range == "this_month":
         now = datetime.now()
         start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -70,7 +71,6 @@ def get_candidates(
         query += " AND created_at >= ?"
         params.append(start_of_year.strftime('%Y-%m-%d %H:%M:%S'))
     
-    # Các bộ lọc cũ
     if visa and visa != "Tất cả":
         query += " AND visa_mong_muon = ?"
         params.append(visa)
@@ -119,7 +119,6 @@ def update_status_api(payload: StatusUpdate):
         pass
     return {"status": "success", "message": "Cập nhật thành công"}
 
-# API lấy danh sách lịch hẹn
 @app.get("/api/appointments")
 def get_appointments():
     conn = database.get_connection()
@@ -135,7 +134,6 @@ def get_appointments():
     conn.close()
     return {"data": results}
 
-# API thêm lịch hẹn
 class NewAppointment(BaseModel):
     candidate_id: int
     title: str
@@ -158,28 +156,74 @@ def add_appointment(payload: NewAppointment):
         return {"status": "error", "message": str(e)}
 
 # ==========================================
-# CÁC ROUTE TRẢ VỀ GIAO DIỆN HTML
+# API QUẢN LÝ ĐƠN HÀNG (JOB ORDERS)
+# ==========================================
+
+@app.get("/api/job-orders")
+def get_job_orders():
+    conn = database.get_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM job_orders ORDER BY id DESC")
+    columns = [column[0] for column in c.description]
+    results = [dict(zip(columns, row)) for row in c.fetchall()]
+    conn.close()
+    return {"data": results}
+
+class NewJobOrder(BaseModel):
+    title: str
+    company: str = None
+    location: str = None
+    industry: str = None
+    visa_type: str = None
+    salary: str = None
+    quota: int = 0
+
+@app.post("/api/add-job-order")
+def add_job_order(payload: NewJobOrder):
+    try:
+        conn = database.get_connection()
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO job_orders (title, company, location, industry, visa_type, salary, quota)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (payload.title, payload.company, payload.location, payload.industry, payload.visa_type, payload.salary, payload.quota))
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": "Thêm đơn hàng thành công"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# ==========================================
+# CÁC ROUTE TRẢ VỀ GIAO DIỆN HTML (HR)
 # ==========================================
 
 @app.get("/", response_class=HTMLResponse)
 def read_dashboard(request: Request):
+    return RedirectResponse(url="/hr/", status_code=307)
+
+@app.get("/hr/", response_class=HTMLResponse)
+def read_hr_dashboard(request: Request):
     return templates.TemplateResponse(request=request, name="index.html", context={})
 
-@app.get("/candidates", response_class=HTMLResponse)
+@app.get("/hr/candidates", response_class=HTMLResponse)
 def read_candidates_page(request: Request):
     return templates.TemplateResponse(request=request, name="candidates.html", context={})
 
-@app.get("/kanban", response_class=HTMLResponse)
+@app.get("/hr/kanban", response_class=HTMLResponse)
 def read_kanban_page(request: Request):
     return templates.TemplateResponse(request=request, name="kanban.html", context={})
 
-@app.get("/reports", response_class=HTMLResponse)
+@app.get("/hr/reports", response_class=HTMLResponse)
 def read_reports_page(request: Request):
     return templates.TemplateResponse(request=request, name="reports.html", context={})
 
-@app.get("/calendar", response_class=HTMLResponse)
+@app.get("/hr/calendar", response_class=HTMLResponse)
 def read_calendar_page(request: Request):
     return templates.TemplateResponse(request=request, name="calendar.html", context={})
+
+@app.get("/hr/job_orders", response_class=HTMLResponse)
+def read_job_orders_page(request: Request):
+    return templates.TemplateResponse(request=request, name="job_orders.html", context={})
 
 # API lấy lịch sử tương tác
 @app.get("/api/interactions/{candidate_id}")
@@ -192,7 +236,6 @@ def get_interactions(candidate_id: int):
     df['created_at'] = df['created_at'].astype(str)
     return {"data": df.to_dict(orient='records')}
 
-# API thêm ghi chú
 class NoteUpdate(BaseModel):
     candidate_id: int
     note_content: str
@@ -210,7 +253,6 @@ def add_note(payload: NoteUpdate):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# API thêm ứng viên mới (ĐÃ THÊM phone và address)
 class NewCandidate(BaseModel):
     nguoi_gui: str
     visa_mong_muon: str = None
@@ -220,8 +262,8 @@ class NewCandidate(BaseModel):
     gioi_tinh: str = None
     raw_content: str = None
     url_bai_viet: str = None
-    phone: str = None      # <-- Thêm
-    address: str = None    # <-- Thêm
+    phone: str = None
+    address: str = None
 
 @app.post("/api/add-candidate")
 def add_candidate(payload: NewCandidate):
@@ -248,7 +290,97 @@ def add_candidate(payload: NewCandidate):
         return {"status": "error", "message": str(e)}
 
 # ==========================================
+# API QUẢN LÝ ỨNG TUYỂN (APPLICATIONS)
+# ==========================================
+
+@app.get("/api/applications/{job_order_id}")
+def get_applications_by_job(job_order_id: int):
+    """Lấy danh sách ứng viên đã ứng tuyển vào một đơn hàng"""
+    conn = database.get_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT a.id, a.candidate_id, a.status, a.applied_date, a.result, a.note,
+               c.nguoi_gui, c.dia_diem, c.nganh_nghe
+        FROM applications a
+        JOIN candidates c ON a.candidate_id = c.id
+        WHERE a.job_order_id = ?
+        ORDER BY a.applied_date DESC
+    """, (job_order_id,))
+    columns = [column[0] for column in c.description]
+    results = [dict(zip(columns, row)) for row in c.fetchall()]
+    conn.close()
+    return {"data": results}
+
+class NewApplication(BaseModel):
+    candidate_id: int
+    job_order_id: int
+    note: str = None
+
+@app.post("/api/add-application")
+def add_application(payload: NewApplication):
+    """Gán ứng viên vào đơn hàng"""
+    try:
+        conn = database.get_connection()
+        c = conn.cursor()
+        
+        # Kiểm tra xem đã ứng tuyển chưa (tránh trùng lặp)
+        c.execute("SELECT id FROM applications WHERE candidate_id = ? AND job_order_id = ?", 
+                  (payload.candidate_id, payload.job_order_id))
+        if c.fetchone():
+            conn.close()
+            return {"status": "error", "message": "Ứng viên này đã ứng tuyển vào đơn hàng này rồi!"}
+        
+        c.execute("""
+            INSERT INTO applications (candidate_id, job_order_id, note)
+            VALUES (?, ?, ?)
+        """, (payload.candidate_id, payload.job_order_id, payload.note))
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": "Gán ứng viên vào đơn hàng thành công"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+@app.post("/api/login")
+def login(payload: LoginRequest):
+    conn = database.get_connection()
+    c = conn.cursor()
+    
+    # Mã hóa mật khẩu để so sánh
+    hashed_pass = hashlib.sha256(payload.password.encode()).hexdigest()
+    
+    c.execute("SELECT id, username, full_name, role FROM users WHERE username = ? AND password = ?", 
+              (payload.username, hashed_pass))
+    user = c.fetchone()
+    conn.close()
+    
+    if user:
+        return {
+            "status": "success",
+            "data": {
+                "id": user[0],
+                "username": user[1],
+                "full_name": user[2],
+                "role": user[3]
+            }
+        }
+    else:
+        return {"status": "error", "message": "Tên đăng nhập hoặc mật khẩu không đúng!"}
+
+@app.get("/login", response_class=HTMLResponse)
+def read_login_page(request: Request):
+    return admin_templates.TemplateResponse(request=request, name="login.html", context={})
+
+@app.get("/admin/", response_class=HTMLResponse)
+def read_admin_dashboard(request: Request):
+    # Tạm thời trả về trang login nếu chưa có dashboard, hoặc tạo file index.html trong admin/
+    return admin_templates.TemplateResponse(request=request, name="index.html", context={})
+# ==========================================
 # CẤU HÌNH PHỤC VỤ FILE HTML TĨNH (SIDEBAR...)
-# LƯU Ý: PHẢI ĐẶT Ở CUỐI CÙNG ĐỂ KHÔNG CHIẾM QUYỀN CÁC ROUTE KHÁC
 # ==========================================
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend_static")

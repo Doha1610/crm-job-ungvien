@@ -1,6 +1,8 @@
 import sqlite3
 import os
 import pandas as pd
+import hashlib
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -253,6 +255,60 @@ def add_status_column():
     
     conn.close()
 
+def create_applications_table():
+    """Tạo bảng ứng tuyển (liên kết ứng viên và đơn hàng)"""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS applications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidate_id INTEGER,
+            job_order_id INTEGER,
+            status TEXT DEFAULT 'Mới',
+            applied_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            interview_date TIMESTAMP,
+            result TEXT,
+            note TEXT,
+            FOREIGN KEY (candidate_id) REFERENCES candidates(id),
+            FOREIGN KEY (job_order_id) REFERENCES job_orders(id)
+        )
+    ''')
+    conn.commit()
+    conn.close()
+    print("✅ Bảng 'applications' đã sẵn sàng!")
+
+
+def hash_password(password):
+    """Mã hóa mật khẩu bằng SHA-256"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def create_users_table():
+    """Tạo bảng người dùng nếu chưa có"""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            full_name TEXT,
+            role TEXT DEFAULT 'hr', -- 'admin', 'manager', 'sale', 'hr'
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    
+    # Tạo tài khoản Admin mặc định nếu chưa có
+    c.execute("SELECT id FROM users WHERE username = 'admin'")
+    if not c.fetchone():
+        admin_pass = hash_password("admin123") # Mật khẩu mặc định
+        c.execute("INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)",
+                  ("admin", admin_pass, "Quản trị viên", "admin"))
+        conn.commit()
+        print("✅ Đã tạo tài khoản Admin mặc định (admin / admin123)")
+    
+    conn.close()
+    print("✅ Bảng 'users' đã sẵn sàng!")
 
 if __name__ == "__main__":
     test_connection()
@@ -263,7 +319,7 @@ if __name__ == "__main__":
     create_interaction_log_table()
     create_appointments_table()
     add_contact_columns_if_not_exists()
-    
+    create_users_table()
     print("\n--- Test cập nhật trạng thái ---")
     update_status(1, "Đã liên hệ")
     print("✅ Đã chạy test update_status thành công!")
