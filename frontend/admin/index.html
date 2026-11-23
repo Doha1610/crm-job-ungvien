@@ -38,15 +38,54 @@
         </div>
     </div>
 
-    <script src="../js/sidebar_admin.js"></script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            // Tạm thời hiển thị số liệu giả lập, sau này sẽ gọi API
-            document.getElementById('totalCandidates').innerText = '0';
-            document.getElementById('totalJobs').innerText = '0';
-            document.getElementById('totalHired').innerText = '0';
-            document.getElementById('totalUsers').innerText = '0';
-        });
-    </script>
+   <script src="../js/sidebar_admin.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Gọi API thống kê
+        fetch('/api/admin/stats')
+            .then(res => res.json())
+            .then(data => {
+                // Cập nhật các con số
+                document.getElementById('totalCandidates').innerText = data.total_candidates.toLocaleString('vi-VN');
+                document.getElementById('totalJobs').innerText = data.total_jobs.toLocaleString('vi-VN');
+                document.getElementById('totalHired').innerText = data.total_hired.toLocaleString('vi-VN');
+                document.getElementById('totalUsers').innerText = data.total_users.toLocaleString('vi-VN');
+
+                // Vẽ biểu đồ trạng thái ứng viên (Pie chart)
+                const statusCtx = document.getElementById('chartCandidates');
+                if (statusCtx) {
+                    new Chart(statusCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: Object.keys(data.status_counts),
+                            datasets: [{
+                                data: Object.values(data.status_counts),
+                                backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#14b8a6']
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                    });
+                }
+
+                // Vẽ biểu đồ đơn hàng theo địa điểm (Bar chart)
+                const jobCtx = document.getElementById('chartJobs');
+                if (jobCtx) {
+                    new Chart(jobCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: Object.keys(data.job_counts),
+                            datasets: [{
+                                label: 'Số lượng đơn hàng',
+                                data: Object.values(data.job_counts),
+                                backgroundColor: '#3b82f6'
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                    });
+                }
+            })
+            .catch(err => console.error("Lỗi tải thống kê:", err));
+    });
+</script>
 </body>
 </html>
