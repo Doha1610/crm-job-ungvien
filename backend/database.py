@@ -2,7 +2,6 @@ import sqlite3
 import os
 import pandas as pd
 import hashlib
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -125,7 +124,6 @@ def add_notes_column_if_not_exists():
         conn.close()
 
 
-# ===== HÀM MỚI: THÊM CỘT created_at =====
 def add_created_at_column():
     """Thêm cột created_at nếu chưa có"""
     conn = get_connection()
@@ -141,7 +139,6 @@ def add_created_at_column():
             print(f"❌ Lỗi: {e}")
     finally:
         conn.close()
-# =========================================
 
 
 def create_interaction_log_table():
@@ -255,6 +252,31 @@ def add_status_column():
     
     conn.close()
 
+
+def create_job_orders_table():
+    """Tạo bảng đơn hàng tuyển dụng nếu chưa có"""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS job_orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            company TEXT,
+            location TEXT,
+            industry TEXT,
+            visa_type TEXT,
+            salary TEXT,
+            quota INTEGER DEFAULT 0,
+            hired_count INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'Đang tuyển',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+    print("✅ Bảng 'job_orders' đã sẵn sàng!")
+
+
 def create_applications_table():
     """Tạo bảng ứng tuyển (liên kết ứng viên và đơn hàng)"""
     conn = get_connection()
@@ -310,9 +332,10 @@ def create_users_table():
     conn.close()
     print("✅ Bảng 'users' đã sẵn sàng!")
 
+
 if __name__ == "__main__":
     test_connection()
-    add_status_column_if_not_exists()  # Chỉ dùng hàm này là đủ để thêm cột status
+    add_status_column_if_not_exists()
     add_notes_column_if_not_exists()
     add_assigned_column_if_not_exists()  
     add_created_at_column()
@@ -320,6 +343,8 @@ if __name__ == "__main__":
     create_appointments_table()
     add_contact_columns_if_not_exists()
     create_users_table()
+    create_job_orders_table()
+    create_applications_table()
     print("\n--- Test cập nhật trạng thái ---")
     update_status(1, "Đã liên hệ")
     print("✅ Đã chạy test update_status thành công!")
