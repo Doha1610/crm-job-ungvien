@@ -380,6 +380,85 @@ def read_login_page(request: Request):
 def read_admin_dashboard(request: Request):
     # Tạm thời trả về trang login nếu chưa có dashboard, hoặc tạo file index.html trong admin/
     return admin_templates.TemplateResponse(request=request, name="index.html", context={})
+
+# ==========================================
+# API THỐNG KÊ CHO ADMIN
+# ==========================================
+
+@app.get("/api/admin/stats")
+def get_admin_stats():
+    conn = database.get_connection()
+    c = conn.cursor()
+    
+    # 1. Tổng số ứng viên
+    c.execute("SELECT COUNT(*) FROM candidates")
+    total_candidates = c.fetchone()[0]
+    
+    # 2. Tổng số đơn hàng
+    c.execute("SELECT COUNT(*) FROM job_orders")
+    total_jobs = c.fetchone()[0]
+    
+    # 3. Tổng số nhân sự (users)
+    c.execute("SELECT COUNT(*) FROM users")
+    total_users = c.fetchone()[0]
+    
+    # 4. Số lượng đã tuyển (trạng thái 'Đã tuyển')
+    c.execute("SELECT COUNT(*) FROM candidates WHERE status = 'Đã tuyển'")
+    total_hired = c.fetchone()[0]
+    
+    # 5. Thống kê trạng thái ứng viên (để vẽ biểu đồ)
+    c.execute("SELECT status, COUNT(*) FROM candidates GROUP BY status")
+    status_counts = dict(c.fetchall())
+    
+    # 6. Thống kê đơn hàng theo địa điểm (để vẽ biểu đồ)
+    c.execute("SELECT location, COUNT(*) FROM job_orders GROUP BY location")
+    job_counts = dict(c.fetchall())
+    
+    conn.close()
+    
+    return {
+        "total_candidates": total_candidates,
+        "total_jobs": total_jobs,
+        "total_users": total_users,
+        "total_hired": total_hired,
+        "status_counts": status_counts,
+        "job_counts": job_counts
+    }
+
+# Thêm vào main.py (dưới API /api/admin/delete-user)
+
+class AssignRequest(BaseModel):
+    candidate_id: int
+    user_id: int  # ID của nhân viên được gán
+
+@app.post("/api/admin/assign")
+def assign_candidate(payload: AssignRequest):
+    """Gán ứng viên cho nhân viên phụ trách"""
+    try:
+        conn = database.get_connection()
+        c = conn.cursor()
+        
+        # Lấy tên nhân viên để lưu vào assigned_to (hoặc lưu ID cũng được)
+        c.execute("SELECT full_name FROM users WHERE id = ?", (payload.user_id,))
+        user = c.fetchone()
+        if not user:
+            conn.close()
+            return {"status": "error", "message": "Không tìm thấy nhân viên!"}
+        
+        user_name = user[0]
+        
+        # Cập nhật cột assigned_to trong bảng candidates
+        c.execute("UPDATE candidates SET assigned_to = ? WHERE id = ?", (user_name, payload.candidate_id))
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": f"Đã gán cho {user_name}"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/admin/leads", response_class=HTMLResponse)
+def read_admin_leads(request: Request):
+    return admin_templates.TemplateResponse(request=request, name="leads.html", context={})
 # ==========================================
 # CẤU HÌNH PHỤC VỤ FILE HTML TĨNH (SIDEBAR...)
 # ==========================================
