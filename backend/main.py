@@ -459,6 +459,95 @@ def assign_candidate(payload: AssignRequest):
 @app.get("/admin/leads", response_class=HTMLResponse)
 def read_admin_leads(request: Request):
     return admin_templates.TemplateResponse(request=request, name="leads.html", context={})
+
+@app.get("/api/admin/users")
+def get_all_users():
+    """Lấy danh sách tất cả người dùng"""
+    conn = database.get_connection()
+    c = conn.cursor()
+    # THÊM is_active VÀO CÂU QUERY
+    c.execute("SELECT id, username, full_name, role, is_active, created_at FROM users ORDER BY id DESC")
+    columns = [column[0] for column in c.description]
+    results = [dict(zip(columns, row)) for row in c.fetchall()]
+    conn.close()
+    return {"data": results}
+
+class ToggleStatusRequest(BaseModel):
+    user_id: int
+    is_active: bool
+
+@app.post("/api/admin/toggle-user-status")
+def toggle_user_status(payload: ToggleStatusRequest):
+    """Khóa hoặc mở khóa tài khoản người dùng"""
+    try:
+        conn = database.get_connection()
+        c = conn.cursor()
+        
+        # Không cho phép khóa tài khoản admin gốc
+        c.execute("SELECT username FROM users WHERE id = ?", (payload.user_id,))
+        user = c.fetchone()
+        if user and user[0] == 'admin':
+            conn.close()
+            return {"status": "error", "message": "Không thể khóa tài khoản Admin gốc!"}
+        
+        status_value = 1 if payload.is_active else 0
+        c.execute("UPDATE users SET is_active = ? WHERE id = ?", (status_value, payload.user_id))
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": "Cập nhật trạng thái thành công"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+class ResetPasswordRequest(BaseModel):
+    user_id: int
+    new_password: str
+
+@app.post("/api/admin/reset-password")
+def reset_password(payload: ResetPasswordRequest):
+    """Đặt lại mật khẩu cho người dùng"""
+    try:
+        conn = database.get_connection()
+        c = conn.cursor()
+        hashed_pass = database.hash_password(payload.new_password)
+        c.execute("UPDATE users SET password = ? WHERE id = ?", (hashed_pass, payload.user_id))
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": "Đặt lại mật khẩu thành công"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/login")
+def login(payload: LoginRequest):
+    conn = database.get_connection()
+    c = conn.cursor()
+    
+    hashed_pass = hashlib.sha256(payload.password.encode()).hexdigest()
+    
+    # THÊM is_active VÀO CÂU QUERY
+    c.execute("SELECT id, username, full_name, role, is_active FROM users WHERE username = ? AND password = ?", 
+              (payload.username, hashed_pass))
+    user = c.fetchone()
+    conn.close()
+    
+    if user:
+        if user[4] == 0:  # Nếu is_active = 0
+            return {"status": "error", "message": "Tài khoản đã bị khóa!"}
+        
+        return {
+            "status": "success",
+            "data": {
+                "id": user[0],
+                "username": user[1],
+                "full_name": user[2],
+                "role": user[3]
+            }
+        }
+    else:
+        return {"status": "error", "message": "Tên đăng nhập hoặc mật khẩu không đúng!"}
+
+@app.get("/admin/users", response_class=HTMLResponse)
+def read_admin_users(request: Request):
+    return admin_templates.TemplateResponse(request=request, name="users.html", context={})
 # ==========================================
 # CẤU HÌNH PHỤC VỤ FILE HTML TĨNH (SIDEBAR...)
 # ==========================================

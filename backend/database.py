@@ -332,6 +332,23 @@ def create_users_table():
     conn.close()
     print("✅ Bảng 'users' đã sẵn sàng!")
 
+# ... (các hàm khác ở trên)
+
+def add_is_active_column():
+    """Thêm cột is_active để khóa/mở tài khoản"""
+    conn = get_connection()
+    c = conn.cursor()
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1;")
+        conn.commit()
+        print("✅ Đã thêm cột 'is_active' vào bảng users!")
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" in str(e):
+            print("ℹ️ Cột 'is_active' đã tồn tại.")
+        else:
+            print(f"❌ Lỗi: {e}")
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
     test_connection()
@@ -345,6 +362,10 @@ if __name__ == "__main__":
     create_users_table()
     create_job_orders_table()
     create_applications_table()
+    
+    # THÊM DÒNG NÀY:
+    add_is_active_column()  
+    
     print("\n--- Test cập nhật trạng thái ---")
     update_status(1, "Đã liên hệ")
     print("✅ Đã chạy test update_status thành công!")
