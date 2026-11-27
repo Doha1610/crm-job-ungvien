@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>HelloJob Admin - Phân công Công việc</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .assign-container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+        th { background: #f8fafc; color: #475569; font-weight: 600; }
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .badge-active { background: #dcfce7; color: #166534; }
+        .badge-assigned { background: #e0f2fe; color: #0369a1; }
+    </style>
+</head>
+<body>
+    <div id="sidebar-container"></div>
+
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div>
+                <h1>📌 Phân công Công việc</h1>
+                <p style="color: #64748b; font-size: 14px;">Gán ứng viên cho nhân viên Sale/HR phụ trách.</p>
+            </div>
+        </div>
+
+        <div class="assign-container">
+            <table id="assignTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Tên ứng viên</th>
+                        <th>Visa</th>
+                        <th>Địa điểm</th>
+                        <th>Trạng thái</th>
+                        <th>Người phụ trách</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Dữ liệu sẽ được JS đổ vào đây -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="../js/sidebar_admin.js"></script>
+    <script>
+        let allUsers = [];
+
+        document.addEventListener("DOMContentLoaded", function() {
+            loadCandidatesForAssignment();
+            loadUsers();
+        });
+
+        // Tải danh sách ứng viên
+        function loadCandidatesForAssignment() {
+            fetch('/api/admin/all-candidates')
+                .then(res => res.json())
+                .then(data => {
+                    const tbody = document.querySelector('#assignTable tbody');
+                    tbody.innerHTML = '';
+                    data.data.forEach(c => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>#${c.id}</td>
+                            <td><strong>${c.nguoi_gui || 'N/A'}</strong></td>
+                            <td>${c.visa_mong_muon || 'N/A'}</td>
+                            <td>📍 ${c.dia_diem || 'N/A'}</td>
+                            <td><span class="badge badge-active">${c.status || 'Mới'}</span></td>
+                            <td id="assigned-${c.id}">${c.assigned_to || 'Chưa phân công'}</td>
+                            <td>
+                                <select id="user-select-${c.id}" style="padding: 4px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                                    <option value="">-- Chọn nhân viên --</option>
+                                </select>
+                                <button onclick="assignLead(${c.id})" style="padding: 4px 8px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">Gán</button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                })
+                .catch(err => console.error("Lỗi tải danh sách ứng viên:", err));
+        }
+
+        // Tải danh sách nhân viên để đổ vào dropdown
+        function loadUsers() {
+            fetch('/api/admin/users')
+                .then(res => res.json())
+                .then(data => {
+                    allUsers = data.data;
+                    // Đổ danh sách nhân viên vào tất cả các ô select
+                    const selects = document.querySelectorAll('select[id^="user-select-"]');
+                    selects.forEach(select => {
+                        select.innerHTML = '<option value="">-- Chọn nhân viên --</option>';
+                        allUsers.forEach(user => {
+                            const option = document.createElement('option');
+                            option.value = user.id;
+                            option.textContent = `${user.full_name} (${user.role})`;
+                            select.appendChild(option);
+                        });
+                    });
+                })
+                .catch(err => console.error("Lỗi tải danh sách nhân viên:", err));
+        }
+
+        // Hàm gán ứng viên
+        function assignLead(candidateId) {
+            const select = document.getElementById(`user-select-${candidateId}`);
+            const userId = select.value;
+            if (!userId) {
+                alert("Vui lòng chọn nhân viên!");
+                return;
+            }
+
+            fetch('/api/admin/assign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ candidate_id: candidateId, user_id: parseInt(userId) })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert("✅ " + data.message);
+                    // Cập nhật lại cột hiển thị người phụ trách
+                    const userName = allUsers.find(u => u.id === parseInt(userId))?.full_name || 'N/A';
+                    document.getElementById(`assigned-${candidateId}`).innerText = userName;
+                } else {
+                    alert("Lỗi: " + data.message);
+                }
+            })
+            .catch(err => alert("Lỗi kết nối server!"));
+        }
+    </script>
+</body>
+</html>

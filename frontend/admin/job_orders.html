@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>HelloJob Admin - Quản lý Đơn hàng</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .job-container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+        th { background: #f8fafc; color: #475569; font-weight: 600; }
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .badge-active { background: #dcfce7; color: #166534; }
+        
+        /* Modal CSS */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; width: 500px; padding: 24px; border-radius: 12px; position: relative; }
+        .modal-close { position: absolute; top: 15px; right: 20px; border: none; background: none; font-size: 24px; cursor: pointer; color: #64748b; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px; color: #475569; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; }
+    </style>
+</head>
+<body>
+    <div id="sidebar-container"></div>
+
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div>
+                <h1>📦 Quản lý Đơn hàng Tuyển dụng</h1>
+                <p style="color: #64748b; font-size: 14px;">Quản lý chỉ tiêu và tiến độ tuyển dụng toàn hệ thống.</p>
+            </div>
+            <button onclick="openJobModal()" class="btn-primary">➕ Tạo đơn hàng mới</button>
+        </div>
+
+        <div class="job-container">
+            <table id="jobTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Tên Đơn Hàng</th>
+                        <th>Công ty</th>
+                        <th>Địa điểm</th>
+                        <th>Chỉ tiêu</th>
+                        <th>Đã tuyển</th>
+                        <th>Trạng thái</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Dữ liệu sẽ được JS đổ vào đây -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MODAL THÊM ĐƠN HÀNG -->
+    <div class="modal-overlay" id="jobModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeJobModal()">&times;</button>
+            <h2 style="margin-top: 0;">➕ Tạo Đơn Hàng Mới</h2>
+            
+            <div class="form-group">
+                <label>Tên đơn hàng</label>
+                <input type="text" id="jobTitle" placeholder="VD: Thực phẩm Osaka">
+            </div>
+            <div class="form-group">
+                <label>Công ty</label>
+                <input type="text" id="jobCompany" placeholder="Tên công ty...">
+            </div>
+            <div class="form-group">
+                <label>Địa điểm</label>
+                <input type="text" id="jobLocation" placeholder="VD: Osaka, Tokyo...">
+            </div>
+            <div class="form-group">
+                <label>Chỉ tiêu (Số người cần tuyển)</label>
+                <input type="number" id="jobQuota" value="10">
+            </div>
+            
+            <button onclick="submitJobOrder()" style="width: 100%; padding: 12px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px;">
+                💾 Lưu Đơn Hàng
+            </button>
+        </div>
+    </div>
+
+    <script src="../js/sidebar_admin.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            loadJobOrders();
+        });
+
+        function loadJobOrders() {
+            fetch('/api/job-orders')
+                .then(res => res.json())
+                .then(data => {
+                    const tbody = document.querySelector('#jobTable tbody');
+                    tbody.innerHTML = '';
+                    if(data.data.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Chưa có đơn hàng nào.</td></tr>';
+                        return;
+                    }
+                    data.data.forEach(job => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>#${job.id}</td>
+                            <td><strong>${job.title}</strong></td>
+                            <td>${job.company || 'N/A'}</td>
+                            <td>📍 ${job.location || 'N/A'}</td>
+                            <td><strong style="color: #3b82f6;">${job.quota}</strong></td>
+                            <td>${job.hired_count || 0}</td>
+                            <td><span class="badge badge-active">${job.status || 'Đang tuyển'}</span></td>
+                            <td>
+                                <button onclick="deleteJobOrder(${job.id})" style="padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer;">Xóa</button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                })
+                .catch(err => console.error("Lỗi tải đơn hàng:", err));
+        }
+
+        function openJobModal() { document.getElementById('jobModal').style.display = 'flex'; }
+        function closeJobModal() { document.getElementById('jobModal').style.display = 'none'; }
+
+        function submitJobOrder() {
+            const title = document.getElementById('jobTitle').value.trim();
+            if(!title) { alert("Vui lòng nhập tên đơn hàng!"); return; }
+
+            const payload = {
+                title: title,
+                company: document.getElementById('jobCompany').value,
+                location: document.getElementById('jobLocation').value,
+                quota: parseInt(document.getElementById('jobQuota').value) || 0
+            };
+
+            fetch('/api/add-job-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'success') {
+                    alert("✅ Đã thêm đơn hàng!");
+                    closeJobModal();
+                    loadJobOrders(); // Tải lại bảng
+                } else {
+                    alert("Lỗi: " + data.message);
+                }
+            })
+            .catch(err => alert("Lỗi kết nối: " + err));
+        }
+
+        function deleteJobOrder(jobId) {
+            if (!confirm("Bạn có chắc chắn muốn xóa đơn hàng này?")) return;
+            fetch(`/api/admin/delete-job-order/${jobId}`, { method: 'DELETE' })
+                .then(res => res.json())
+                .then(data => {
+                    if(data.status === 'success') {
+                        alert("✅ Đã xóa đơn hàng!");
+                        loadJobOrders(); // Tải lại bảng
+                    } else {
+                        alert("Lỗi: " + data.message);
+                    }
+                })
+                .catch(err => alert("Lỗi kết nối server!"));
+        }
+    </script>
+</body>
+</html>
