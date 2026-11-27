@@ -193,6 +193,18 @@ def add_job_order(payload: NewJobOrder):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.delete("/api/admin/delete-job-order/{job_id}")
+def delete_job_order(job_id: int):
+    """Xóa đơn hàng (chỉ Admin)"""
+    try:
+        conn = database.get_connection()
+        c = conn.cursor()
+        c.execute("DELETE FROM job_orders WHERE id = ?", (job_id,))
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": "Xóa đơn hàng thành công"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 # ==========================================
 # CÁC ROUTE TRẢ VỀ GIAO DIỆN HTML (HR)
 # ==========================================
@@ -431,6 +443,18 @@ class AssignRequest(BaseModel):
     candidate_id: int
     user_id: int  # ID của nhân viên được gán
 
+# API lấy danh sách tất cả ứng viên (dành riêng cho Admin)
+@app.get("/api/admin/all-candidates")
+def get_all_candidates_for_admin():
+    """Lấy danh sách tất cả ứng viên để phân công"""
+    conn = database.get_connection()
+    c = conn.cursor()
+    c.execute("SELECT id, nguoi_gui, visa_mong_muon, dia_diem, status, assigned_to FROM candidates ORDER BY id DESC")
+    columns = [column[0] for column in c.description]
+    results = [dict(zip(columns, row)) for row in c.fetchall()]
+    conn.close()
+    return {"data": results}
+
 @app.post("/api/admin/assign")
 def assign_candidate(payload: AssignRequest):
     """Gán ứng viên cho nhân viên phụ trách"""
@@ -548,6 +572,14 @@ def login(payload: LoginRequest):
 @app.get("/admin/users", response_class=HTMLResponse)
 def read_admin_users(request: Request):
     return admin_templates.TemplateResponse(request=request, name="users.html", context={})
+
+@app.get("/admin/job_orders", response_class=HTMLResponse)
+def read_admin_job_orders(request: Request):
+    return admin_templates.TemplateResponse(request=request, name="job_orders.html", context={})
+
+@app.get("/admin/assignments", response_class=HTMLResponse)
+def read_admin_assignments(request: Request):
+    return admin_templates.TemplateResponse(request=request, name="assignments.html", context={})
 # ==========================================
 # CẤU HÌNH PHỤC VỤ FILE HTML TĨNH (SIDEBAR...)
 # ==========================================
