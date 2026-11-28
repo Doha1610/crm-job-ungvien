@@ -479,6 +479,49 @@ def assign_candidate(payload: AssignRequest):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+# ==========================================
+# API BÁO CÁO & THỐNG KÊ CHO ADMIN
+# ==========================================
+
+@app.get("/api/admin/reports")
+def get_admin_reports():
+    """Lấy dữ liệu thống kê cho báo cáo Admin"""
+    conn = database.get_connection()
+    c = conn.cursor()
+    
+    # 1. Thống kê hiệu suất nhân viên (số ứng viên được gán)
+    c.execute("""
+        SELECT u.full_name, u.role, COUNT(c.id) as total_assigned
+        FROM users u
+        LEFT JOIN candidates c ON u.full_name = c.assigned_to
+        GROUP BY u.id
+        ORDER BY total_assigned DESC
+    """)
+    staff_performance = [{"name": row[0], "role": row[1], "total": row[2]} for row in c.fetchall()]
+    
+    # 2. Thống kê trạng thái ứng viên (Pie chart)
+    c.execute("SELECT status, COUNT(*) FROM candidates GROUP BY status")
+    status_counts = dict(c.fetchall())
+    
+    # 3. Thống kê đơn hàng theo địa điểm (Bar chart)
+    c.execute("SELECT location, COUNT(*) FROM job_orders GROUP BY location")
+    job_counts = dict(c.fetchall())
+    
+    # 4. Tỷ lệ chuyển đổi (Conversion Rate)
+    c.execute("SELECT COUNT(*) FROM candidates")
+    total_candidates = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM candidates WHERE status = 'Đã tuyển'")
+    total_hired = c.fetchone()[0]
+    conversion_rate = (total_hired / total_candidates * 100) if total_candidates > 0 else 0
+    
+    conn.close()
+    
+    return {
+        "staff_performance": staff_performance,
+        "status_counts": status_counts,
+        "job_counts": job_counts,
+        "conversion_rate": round(conversion_rate, 1)
+    }
 
 @app.get("/admin/leads", response_class=HTMLResponse)
 def read_admin_leads(request: Request):
@@ -580,6 +623,10 @@ def read_admin_job_orders(request: Request):
 @app.get("/admin/assignments", response_class=HTMLResponse)
 def read_admin_assignments(request: Request):
     return admin_templates.TemplateResponse(request=request, name="assignments.html", context={})
+
+@app.get("/admin/reports", response_class=HTMLResponse)
+def read_admin_reports(request: Request):
+    return admin_templates.TemplateResponse(request=request, name="reports.html", context={})
 # ==========================================
 # CẤU HÌNH PHỤC VỤ FILE HTML TĨNH (SIDEBAR...)
 # ==========================================
